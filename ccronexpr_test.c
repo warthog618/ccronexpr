@@ -69,7 +69,7 @@ time_t cron_mktime_gm(struct tm* tm);
 /**
  * uint8_t* replace char* for storing hit dates, set_bit and get_bit are used as handlers
  */
-uint8_t cron_get_bit(uint8_t* rbyte, int idx);
+uint8_t cron_get_bit(const uint8_t* rbyte, int idx);
 void cron_set_bit(uint8_t* rbyte, int idx);
 void cron_del_bit(uint8_t* rbyte, int idx);
 
