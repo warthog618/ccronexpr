@@ -69,6 +69,10 @@ This project is released under the [Apache License 2.0](http://www.apache.org/li
 Changelog
 ---------
 
+**HEAD**
+
+ * added CMake build
+
 **2019-03-27**
 
  * `CRON_USE_LOCAL_TIME` usage fixes
