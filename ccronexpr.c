@@ -719,12 +719,14 @@ static int has_char(char* str, char ch) {
     return 0;
 }
 
-static unsigned int* get_range(char* field, unsigned int min, unsigned int max, const char** error) {
+static void get_range(char* field, unsigned int min, unsigned int max, unsigned int* res, const char** error) {
 
     char** parts = NULL;
     size_t len = 0;
-    unsigned int* res = (unsigned int*) cron_malloc(2 * sizeof(unsigned int));
-    if (!res) goto return_error;
+    if (!res) {
+        *error = "NULL";
+        goto return_error;
+    }
 
     res[0] = 0;
     res[1] = 0;
@@ -774,15 +776,10 @@ static unsigned int* get_range(char* field, unsigned int min, unsigned int max, 
 
     free_splitted(parts, len);
     *error = NULL;
-    return res;
+    return;
 
     return_error:
     free_splitted(parts, len);
-    if (res) {
-        cron_free(res);
-    }
-
-    return NULL;
 }
 
 static void set_number_hits(const char* value, uint8_t* target, unsigned int min, unsigned int max, const char** error) {
@@ -800,22 +797,17 @@ static void set_number_hits(const char* value, uint8_t* target, unsigned int min
         if (!has_char(fields[i], '/')) {
             /* Not an incrementer so it must be a range (possibly empty) */
 
-            unsigned int* range = get_range(fields[i], min, max, error);
+            unsigned int range[2];
+            get_range(fields[i], min, max, range, error);
 
             if (*error) {
-                if (range) {
-                    cron_free(range);
-                }
                 goto return_result;
-
             }
 
             for (i1 = range[0]; i1 <= range[1]; i1++) {
                 cron_set_bit(target, i1);
 
             }
-            cron_free(range);
-
         } else {
             size_t len2 = 0;
             char** split = split_str(fields[i], '/', &len2);
@@ -824,11 +816,9 @@ static void set_number_hits(const char* value, uint8_t* target, unsigned int min
                 free_splitted(split, len2);
                 goto return_result;
             }
-            unsigned int* range = get_range(split[0], min, max, error);
+            unsigned int range[2];
+            get_range(split[0], min, max, range, error);
             if (*error) {
-                if (range) {
-                    cron_free(range);
-                }
                 free_splitted(split, len2);
                 goto return_result;
             }
@@ -839,13 +829,11 @@ static void set_number_hits(const char* value, uint8_t* target, unsigned int min
             unsigned int delta = parse_uint(split[1], &err);
             if (err) {
                 *error = "Unsigned integer parse error 4";
-                cron_free(range);
                 free_splitted(split, len2);
                 goto return_result;
             }
             if (0 == delta) {
                 *error = "Incrementer may not be zero";
-                cron_free(range);
                 free_splitted(split, len2);
                 goto return_result;
             }
@@ -853,8 +841,6 @@ static void set_number_hits(const char* value, uint8_t* target, unsigned int min
                 cron_set_bit(target, i1);
             }
             free_splitted(split, len2);
-            cron_free(range);
-
         }
     }
     goto return_result;
