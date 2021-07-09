@@ -5,8 +5,7 @@ project(ccronexpr)
 if (MSVC)
     add_compile_options(/W4 /WX)
 else()
-    # TODO fix for -Wconversion
-    add_compile_options(-std=c99 -Wall -Wextra -Werror -Wshadow -Wpointer-arith -Wcast-qual -pedantic-errors)
+    add_compile_options(-std=c99 -Wall -Wextra -Werror -Wshadow -Wpointer-arith -Wcast-qual -Wconversion -pedantic-errors)
 endif()
 
 # Library

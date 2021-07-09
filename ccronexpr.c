@@ -34,7 +34,6 @@
 #define CRON_MAX_SECONDS 60
 #define CRON_MAX_MINUTES 60
 #define CRON_MAX_HOURS 24
-#define CRON_MAX_DAYS_OF_WEEK 8
 #define CRON_MAX_DAYS_OF_MONTH 32
 #define CRON_MAX_MONTHS 12
 #define CRON_MAX_YEARS_DIFF 4
@@ -69,8 +68,8 @@ static const char* const MONTHS_ARR[] = { "FOO", "JAN", "FEB", "MAR", "APR", "MA
                                 (abs(num) < 1000000000 ? 9 : 10)))))))))
 
 #ifndef CRON_TEST_MALLOC
-#define cron_malloc(x) malloc(x);
-#define cron_free(x) free(x);
+#define cron_malloc(x) malloc(x)
+#define cron_free(x) free(x)
 #else /* CRON_TEST_MALLOC */
 void* cron_malloc(size_t n);
 void cron_free(void* p);
@@ -196,17 +195,17 @@ void cron_set_bit(uint8_t* rbyte, int idx) {
     uint8_t j = (uint8_t) (idx / 8);
     uint8_t k = (uint8_t) (idx % 8);
 
-    rbyte[j] |= (1 << k);
+    rbyte[j] |= (uint8_t)(1 << k);
 }
 
 void cron_del_bit(uint8_t* rbyte, int idx) {
     uint8_t j = (uint8_t) (idx / 8);
     uint8_t k = (uint8_t) (idx % 8);
 
-    rbyte[j] &= ~(1 << k);
+    rbyte[j] &= (uint8_t)~(1 << k);
 }
 
-uint8_t cron_get_bit(uint8_t* rbyte, int idx) {
+uint8_t cron_get_bit(const uint8_t* rbyte, int idx) {
     uint8_t j = (uint8_t) (idx / 8);
     uint8_t k = (uint8_t) (idx % 8);
 
@@ -237,8 +236,8 @@ static char* strdupl(const char* str, size_t len) {
     return res;
 }
 
-static unsigned int next_set_bit(uint8_t* bits, unsigned int max, unsigned int from_index, int* notfound) {
-    unsigned int i;
+static int next_set_bit(uint8_t* bits, int max, int from_index, int* notfound) {
+    int i;
     if (!bits) {
         *notfound = 1;
         return 0;
@@ -394,10 +393,10 @@ static int set_field(struct tm* calendar, int field, int val) {
  * Search the bits provided for the next set bit after the value provided,
  * and reset the calendar.
  */
-static unsigned int find_next(uint8_t* bits, unsigned int max, unsigned int value, struct tm* calendar, unsigned int field, unsigned int nextField, int* lower_orders, int* res_out) {
+static int find_next(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
     int notfound = 0;
     int err = 0;
-    unsigned int next_value = next_set_bit(bits, max, value, &notfound);
+    int next_value = next_set_bit(bits, max, value, &notfound);
     /* roll over if needed */
     if (notfound) {
         err = add_to_field(calendar, nextField, 1);
@@ -420,7 +419,7 @@ static unsigned int find_next(uint8_t* bits, unsigned int max, unsigned int valu
     return 0;
 }
 
-static unsigned int find_next_day(struct tm* calendar, uint8_t* days_of_month, unsigned int day_of_month, uint8_t* days_of_week, unsigned int day_of_week, int* resets, int* res_out) {
+static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int day_of_month, uint8_t* days_of_week, int day_of_week, int* resets, int* res_out) {
     int err;
     unsigned int count = 0;
     unsigned int max = 366;
@@ -439,22 +438,22 @@ static unsigned int find_next_day(struct tm* calendar, uint8_t* days_of_month, u
     return 0;
 }
 
-static int do_next(cron_expr* expr, struct tm* calendar, unsigned int dot) {
+static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
     int i;
     int res = 0;
     int* resets = NULL;
     int* empty_list = NULL;
-    unsigned int second = 0;
-    unsigned int update_second = 0;
-    unsigned int minute = 0;
-    unsigned int update_minute = 0;
-    unsigned int hour = 0;
-    unsigned int update_hour = 0;
-    unsigned int day_of_week = 0;
-    unsigned int day_of_month = 0;
-    unsigned int update_day_of_month = 0;
-    unsigned int month = 0;
-    unsigned int update_month = 0;
+    int second = 0;
+    int update_second = 0;
+    int minute = 0;
+    int update_minute = 0;
+    int hour = 0;
+    int update_hour = 0;
+    int day_of_week = 0;
+    int day_of_month = 0;
+    int update_day_of_month = 0;
+    int month = 0;
+    int update_month = 0;
 
     resets = (int*) cron_malloc(CRON_CF_ARR_LEN * sizeof(int));
     if (!resets) goto return_result;
@@ -558,7 +557,7 @@ static char* str_replace(char *orig, const char *rep, const char *with) {
     size_t len_rep; /* length of rep */
     size_t len_with; /* length of with */
     size_t len_front; /* distance between rep and end of last rep */
-    int count; /* number of replacements */
+    size_t count; /* number of replacements */
     if (!orig) return NULL;
     if (!rep) rep = "";
     if (!with) with = "";
@@ -581,7 +580,7 @@ static char* str_replace(char *orig, const char *rep, const char *with) {
 
     while (count--) {
         ins = strstr(orig, rep);
-        len_front = ins - orig;
+        len_front = (size_t)(ins - orig);
         tmp = strncpy(tmp, orig, len_front) + len_front;
         tmp = strcpy(tmp, with) + len_with;
         orig += len_front + len_rep; /* move to next "end of rep" */
@@ -590,7 +589,7 @@ static char* str_replace(char *orig, const char *rep, const char *with) {
     return result;
 }
 
-static unsigned int parse_uint(const char* str, int* errcode) {
+static int parse_uint(const char* str, int* errcode) {
     char* endptr;
     errno = 0;
     long int l = strtol(str, &endptr, 10);
@@ -599,7 +598,7 @@ static unsigned int parse_uint(const char* str, int* errcode) {
         return 0;
     } else {
         *errcode = 0;
-        return (unsigned int) l;
+        return (int) l;
     }
 }
 
@@ -712,6 +711,7 @@ static int has_char(char* str, char ch) {
     size_t i;
     size_t len = 0;
     if (!str) return 0;
+    // TODO one pass only
     len = strlen(str);
     for (i = 0; i < len; i++) {
         if (str[i] == ch) return 1;
@@ -719,7 +719,7 @@ static int has_char(char* str, char ch) {
     return 0;
 }
 
-static void get_range(char* field, unsigned int min, unsigned int max, unsigned int* res, const char** error) {
+static void get_range(char* field, int min, int max, int* res, const char** error) {
 
     char** parts = NULL;
     size_t len = 0;
@@ -735,7 +735,7 @@ static void get_range(char* field, unsigned int min, unsigned int max, unsigned 
         res[1] = max - 1;
     } else if (!has_char(field, '-')) {
         int err = 0;
-        unsigned int val = parse_uint(field, &err);
+        int val = parse_uint(field, &err);
         if (err) {
             *error = "Unsigned integer parse error 1";
             goto return_error;
@@ -782,9 +782,9 @@ static void get_range(char* field, unsigned int min, unsigned int max, unsigned 
     free_splitted(parts, len);
 }
 
-static void set_number_hits(const char* value, uint8_t* target, unsigned int min, unsigned int max, const char** error) {
+static void set_number_hits(const char* value, uint8_t* target, int min, int max, const char** error) {
     size_t i;
-    unsigned int i1;
+    int i1;
     size_t len = 0;
 
     char** fields = split_str(value, ',', &len);
@@ -797,7 +797,7 @@ static void set_number_hits(const char* value, uint8_t* target, unsigned int min
         if (!has_char(fields[i], '/')) {
             /* Not an incrementer so it must be a range (possibly empty) */
 
-            unsigned int range[2];
+            int range[2];
             get_range(fields[i], min, max, range, error);
 
             if (*error) {
@@ -816,7 +816,7 @@ static void set_number_hits(const char* value, uint8_t* target, unsigned int min
                 free_splitted(split, len2);
                 goto return_result;
             }
-            unsigned int range[2];
+            int range[2];
             get_range(split[0], min, max, range, error);
             if (*error) {
                 free_splitted(split, len2);
@@ -826,7 +826,7 @@ static void set_number_hits(const char* value, uint8_t* target, unsigned int min
                 range[1] = max - 1;
             }
             int err = 0;
-            unsigned int delta = parse_uint(split[1], &err);
+            int delta = parse_uint(split[1], &err);
             if (err) {
                 *error = "Unsigned integer parse error 4";
                 free_splitted(split, len2);
@@ -851,8 +851,8 @@ static void set_number_hits(const char* value, uint8_t* target, unsigned int min
 }
 
 static void set_months(char* value, uint8_t* targ, const char** error) {
-    unsigned int i;
-    unsigned int max = 12;
+    int i;
+    int max = 12;
 
     char* replaced = NULL;
 
@@ -875,7 +875,7 @@ static void set_months(char* value, uint8_t* targ, const char** error) {
 }
 
 static void set_days_of_week(char* field, uint8_t* targ, const char** error) {
-    unsigned int max = 7;
+    int max = 7;
     char* replaced = NULL;
 
     if (1 == strlen(field) && '?' == field[0]) {
@@ -992,7 +992,7 @@ time_t cron_next(cron_expr* expr, time_t date) {
 
 /* https://github.com/staticlibs/ccronexpr/pull/8 */
 
-static unsigned int prev_set_bit(uint8_t* bits, int from_index, int to_index, int* notfound) {
+static int prev_set_bit(uint8_t* bits, int from_index, int to_index, int* notfound) {
     int i;
     if (!bits) {
         *notfound = 1;
@@ -1078,10 +1078,10 @@ static int reset_all_max(struct tm* calendar, int* fields) {
  * Search the bits provided for the next set bit after the value provided,
  * and reset the calendar.
  */
-static unsigned int find_prev(uint8_t* bits, unsigned int max, unsigned int value, struct tm* calendar, unsigned int field, unsigned int nextField, int* lower_orders, int* res_out) {
+static int find_prev(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
     int notfound = 0;
     int err = 0;
-    unsigned int next_value = prev_set_bit(bits, value, 0, &notfound);
+    int next_value = prev_set_bit(bits, value, 0, &notfound);
     /* roll under if needed */
     if (notfound) {
         err = add_to_field(calendar, nextField, -1);
@@ -1104,7 +1104,7 @@ static unsigned int find_prev(uint8_t* bits, unsigned int max, unsigned int valu
     return 0;
 }
 
-static unsigned int find_prev_day(struct tm* calendar, uint8_t* days_of_month, unsigned int day_of_month, uint8_t* days_of_week, unsigned int day_of_week, int* resets, int* res_out) {
+static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int day_of_month, uint8_t* days_of_week, int day_of_week, int* resets, int* res_out) {
     int err;
     unsigned int count = 0;
     unsigned int max = 366;
@@ -1123,22 +1123,22 @@ static unsigned int find_prev_day(struct tm* calendar, uint8_t* days_of_month, u
     return 0;
 }
 
-static int do_prev(cron_expr* expr, struct tm* calendar, unsigned int dot) {
+static int do_prev(cron_expr* expr, struct tm* calendar, int dot) {
     int i;
     int res = 0;
     int* resets = NULL;
     int* empty_list = NULL;
-    unsigned int second = 0;
-    unsigned int update_second = 0;
-    unsigned int minute = 0;
-    unsigned int update_minute = 0;
-    unsigned int hour = 0;
-    unsigned int update_hour = 0;
-    unsigned int day_of_week = 0;
-    unsigned int day_of_month = 0;
-    unsigned int update_day_of_month = 0;
-    unsigned int month = 0;
-    unsigned int update_month = 0;
+    int second = 0;
+    int update_second = 0;
+    int minute = 0;
+    int update_minute = 0;
+    int hour = 0;
+    int update_hour = 0;
+    int day_of_week = 0;
+    int day_of_month = 0;
+    int update_day_of_month = 0;
+    int month = 0;
+    int update_month = 0;
 
     resets = (int*) cron_malloc(CRON_CF_ARR_LEN * sizeof(int));
     if (!resets) goto return_result;
