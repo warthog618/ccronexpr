@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+    paths-ignore: ["*.md"]
+  pull_request:
+    branches: ["main"]
+    paths-ignore: ["*.md"]
+
+env:
+  BUILD_TYPE: Debug
+  CMAKE_EXPORT_COMPILE_COMMANDS: 1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        CMAKE_C_FLAGS:
+          - "-fsigned-char"
+          - "-funsigned-char"
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Create Build Environment
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        shell: bash
+        working-directory: ${{github.workspace}}/build
+        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+        env:
+          CFLAGS: ${{ matrix.CMAKE_C_FLAGS }}
+
+      - name: Archive compile_commands.json
+        uses: actions/upload-artifact@v2
+        with:
+          name: compile_commands${{ matrix.CMAKE_C_FLAGS }}.json
+          path: ${{github.workspace}}/build/**/compile_commands.json
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: cmake --build . --config $BUILD_TYPE
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: ctest -C $BUILD_TYPE
