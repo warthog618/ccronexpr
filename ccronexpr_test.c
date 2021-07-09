@@ -63,25 +63,8 @@ void cron_free(void* p) {
 }
 #endif
 
-#ifndef ANDROID
-#ifndef _WIN32
-time_t timegm(struct tm* __tp);
-#else /* _WIN32 */
-static time_t timegm(struct tm* tm) {
-    return _mkgmtime(tm);
-}
-#endif /* _WIN32 */
-#else /* ANDROID */
-static time_t timegm(struct tm * const t) {
-    /* time_t is signed on Android. */
-    static const time_t kTimeMax = ~(1L << (sizeof (time_t) * CHAR_BIT - 1));
-    static const time_t kTimeMin = (1L << (sizeof (time_t) * CHAR_BIT - 1));
-    time64_t result = timegm64(t);
-    if (result < kTimeMin || result > kTimeMax)
-    return -1;
-    return result;
-}
-#endif
+// declared in cronexpr.c
+time_t cron_mktime_gm(struct tm* tm);
 
 /**
  * uint8_t* replace char* for storing hit dates, set_bit and get_bit are used as handlers
@@ -196,7 +179,7 @@ void check_next(const char* pattern, const char* initial, const char* expected) 
 #ifdef CRON_USE_LOCAL_TIME
     time_t dateinit = mktime(calinit);
 #else
-    time_t dateinit = timegm(calinit);
+    time_t dateinit = cron_mktime_gm(calinit);
 #endif
     assert(-1 != dateinit);
     time_t datenext = cron_next(&parsed, dateinit);
@@ -232,7 +215,7 @@ void check_calc_invalid() {
     cron_expr parsed;
     cron_parse_expr("0 0 0 31 6 *", &parsed, NULL);
     struct tm * calinit = poors_mans_strptime("2012-07-01_09:53:50");
-    time_t dateinit = timegm(calinit);
+    time_t dateinit = cron_mktime_gm(calinit);
     time_t res = cron_next(&parsed, dateinit);
     assert(INVALID_INSTANT == res);
     free(calinit);
