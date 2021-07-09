@@ -707,19 +707,16 @@ static char* replace_ordinals(char* value, const char* const * arr, size_t arr_l
     return res;
 }
 
-static int has_char(char* str, char ch) {
+static int has_char(const char* str, char ch) {
     size_t i;
-    size_t len = 0;
     if (!str) return 0;
-    // TODO one pass only
-    len = strlen(str);
-    for (i = 0; i < len; i++) {
+    for (i = 0; str[i] != '\0'; i++) {
         if (str[i] == ch) return 1;
     }
     return 0;
 }
 
-static void get_range(char* field, int min, int max, int* res, const char** error) {
+static void get_range(const char* field, int min, int max, int* res, const char** error) {
 
     char** parts = NULL;
     size_t len = 0;
