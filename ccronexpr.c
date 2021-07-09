@@ -120,7 +120,7 @@ time_t cron_mktime_gm(struct tm* tm) {
         unsetenv("TZ");
     tzset();
     return ret;
-#elif defined(ANDROID)
+#elif defined(ANDROID) && !defined(__LP64__)
     /* https://github.com/adobe/chromium/blob/cfe5bf0b51b1f6b9fe239c2a3c2f2364da9967d7/base/os_compat_android.cc#L20 */
     static const time_t kTimeMax = ~(1L << (sizeof (time_t) * CHAR_BIT - 1));
     static const time_t kTimeMin = (1L << (sizeof (time_t) * CHAR_BIT - 1));
