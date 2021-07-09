@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * File:   ccronexpr.c
  * Author: alex
- * 
+ *
  * Created on February 24, 2015, 9:35 AM
  */
 
@@ -49,7 +49,6 @@
 
 #define CRON_CF_ARR_LEN 7
 
-#define CRON_INVALID_INSTANT ((time_t) -1)
 
 static const char* const DAYS_ARR[] = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
 #define CRON_DAYS_ARR_LEN 7
@@ -620,7 +619,7 @@ static char** split_str(const char* str, char del, size_t* len_out) {
         stlen += 1;
         if (stlen >= CRON_MAX_STR_LEN_TO_SPLIT) goto return_error;
     }
-    
+
     for (i = 0; i < stlen; i++) {
         int c = str[i];
         if (del == str[i]) {
@@ -649,6 +648,7 @@ static char** split_str(const char* str, char del, size_t* len_out) {
         int c = str[i];
         if (del == str[i]) {
             if (bi > 0) {
+                if (ri >= len)  goto return_error;
                 tmp = strdupl(buf, bi);
                 if (!tmp) goto return_error;
                 res[ri++] = tmp;
@@ -661,6 +661,7 @@ static char** split_str(const char* str, char del, size_t* len_out) {
     }
     /* tail */
     if (bi > 0) {
+        if (ri >= len)  goto return_error;
         tmp = strdupl(buf, bi);
         if (!tmp) goto return_error;
         res[ri++] = tmp;
@@ -955,7 +956,7 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
 
     goto return_res;
 
-    return_res: 
+    return_res:
     free_splitted(fields, len);
 }
 

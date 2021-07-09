@@ -36,6 +36,10 @@ extern "C" {
 
 #include <stdint.h> /*added for use if uint*_t data types*/
 
+
+#define CRON_INVALID_INSTANT ((time_t) -1)
+
+
 /**
  * Parsed cron expression
  */
@@ -91,5 +95,3 @@ time_t cron_prev(cron_expr* expr, time_t date);
 #endif
 
 #endif /* CCRONEXPR_H */
-
-
