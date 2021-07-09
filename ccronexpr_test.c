@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * File:   CronExprParser_test.cpp
  * Author: alex
  *
@@ -307,7 +307,7 @@ void test_expr() {
     check_next("0 0 7 ? * MON-FRI", "2009-09-28_07:00:00", "2009-09-29_07:00:00");
     check_next("0 30 23 30 1/3 ?",  "2010-12-30_00:00:00", "2011-01-30_23:30:00");
     check_next("0 30 23 30 1/3 ?",  "2011-01-30_23:30:00", "2011-04-30_23:30:00");
-    check_next("0 30 23 30 1/3 ?",  "2011-04-30_23:30:00", "2011-07-30_23:30:00");    
+    check_next("0 30 23 30 1/3 ?",  "2011-04-30_23:30:00", "2011-07-30_23:30:00");
 #endif
 }
 
@@ -403,7 +403,7 @@ int main() {
     #ifdef CRON_TEST_MALLOC
     test_memory(); /* For this test to work you need to set "-DCRON_TEST_MALLOC=1"*/
     #endif
-    printf("\nAll OK!");
+    printf("\nAll OK!\n");
     return 0;
 }
 
