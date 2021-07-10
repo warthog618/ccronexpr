@@ -620,7 +620,7 @@ static char** split_str(const char* str, char del, size_t* len_out) {
     }
 
     for (i = 0; i < stlen; i++) {
-        int c = str[i];
+        int c = (unsigned char)str[i];
         if (del == str[i]) {
             if (accum > 0) {
                 len += 1;
@@ -644,7 +644,7 @@ static char** split_str(const char* str, char del, size_t* len_out) {
     memset(res, 0, len * sizeof(char*));
 
     for (i = 0; i < stlen; i++) {
-        int c = str[i];
+        int c = (unsigned char)str[i];
         if (del == str[i]) {
             if (bi > 0) {
                 if (ri >= len)  goto return_error;
