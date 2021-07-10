@@ -441,8 +441,8 @@ static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int day_of
 static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
     int i;
     int res = 0;
-    int* resets = NULL;
-    int* empty_list = NULL;
+    int resets[CRON_CF_ARR_LEN];
+    int empty_list[CRON_CF_ARR_LEN];
     int second = 0;
     int update_second = 0;
     int minute = 0;
@@ -455,10 +455,6 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
     int month = 0;
     int update_month = 0;
 
-    resets = (int*) cron_malloc(CRON_CF_ARR_LEN * sizeof(int));
-    if (!resets) goto return_result;
-    empty_list = (int*) cron_malloc(CRON_CF_ARR_LEN * sizeof(int));
-    if (!empty_list) goto return_result;
     for (i = 0; i < CRON_CF_ARR_LEN; i++) {
         resets[i] = -1;
         empty_list[i] = -1;
@@ -516,15 +512,6 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
     goto return_result;
 
     return_result:
-    if (!resets || !empty_list) {
-        res = -1;
-    }
-    if (resets) {
-        cron_free(resets);
-    }
-    if (empty_list) {
-        cron_free(empty_list);
-    }
     return res;
 }
 
@@ -1123,8 +1110,8 @@ static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int day_of
 static int do_prev(cron_expr* expr, struct tm* calendar, int dot) {
     int i;
     int res = 0;
-    int* resets = NULL;
-    int* empty_list = NULL;
+    int resets[CRON_CF_ARR_LEN];
+    int empty_list[CRON_CF_ARR_LEN];
     int second = 0;
     int update_second = 0;
     int minute = 0;
@@ -1137,10 +1124,6 @@ static int do_prev(cron_expr* expr, struct tm* calendar, int dot) {
     int month = 0;
     int update_month = 0;
 
-    resets = (int*) cron_malloc(CRON_CF_ARR_LEN * sizeof(int));
-    if (!resets) goto return_result;
-    empty_list = (int*) cron_malloc(CRON_CF_ARR_LEN * sizeof(int));
-    if (!empty_list) goto return_result;
     for (i = 0; i < CRON_CF_ARR_LEN; i++) {
         resets[i] = -1;
         empty_list[i] = -1;
@@ -1198,15 +1181,6 @@ static int do_prev(cron_expr* expr, struct tm* calendar, int dot) {
     goto return_result;
 
     return_result:
-    if (!resets || !empty_list) {
-        res = -1;
-    }
-    if (resets) {
-        cron_free(resets);
-    }
-    if (empty_list) {
-        cron_free(empty_list);
-    }
     return res;
 }
 
