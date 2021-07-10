@@ -36,8 +36,6 @@
 #define CRON_MAX_DAYS_OF_MONTH 32
 #define CRON_MAX_MONTHS 12
 
-#define INVALID_INSTANT ((time_t) -1)
-
 #define DATE_FORMAT "%Y-%m-%d_%H:%M:%S"
 
 #ifndef ARRAY_LEN
@@ -220,7 +218,7 @@ void check_calc_invalid() {
     poors_mans_strptime("2012-07-01_09:53:50", &calinit);
     time_t dateinit = cron_mktime_gm(&calinit);
     time_t res = cron_next(&parsed, dateinit);
-    assert(INVALID_INSTANT == res);
+    assert(CRON_INVALID_INSTANT == res);
 }
 
 void check_expr_invalid(const char* expr) {
