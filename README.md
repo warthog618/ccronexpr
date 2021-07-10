@@ -54,8 +54,8 @@ See more examples in [tests](https://github.com/staticlibs/ccronexpr/blob/a1343b
 Timezones
 ---------
 
-This implementation does not support explicit timezones handling. By default all dates are
-processed as UTC (GMT) dates without timezone infomation. 
+This implementation does not support explicit timezones handling. By default, all dates are
+processed as UTC (GMT) dates without timezone information. 
 
 To use local dates (current system timezone) instead of GMT compile with `-DCRON_USE_LOCAL_TIME`, example:
 
@@ -71,7 +71,12 @@ Changelog
 
 **HEAD**
 
- * added CMake build
+* added CMake build
+* added GitHub Workflow for continuous testing
+* fixed type casts to support `-Wconvert`
+* added tests for cron_prev and leap years
+* fixed tests to work on ESP platform
+* fixed tests to work with `CRON_USE_LOCAL_TIME`
 
 **2019-03-27**
 
