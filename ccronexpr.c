@@ -55,17 +55,7 @@ static const char* const MONTHS_ARR[] = { "FOO", "JAN", "FEB", "MAR", "APR", "MA
 #define CRON_MONTHS_ARR_LEN 13
 
 #define CRON_MAX_STR_LEN_TO_SPLIT 256
-#define CRON_MAX_NUM_TO_SRING 1000000000
-/* computes number of digits in decimal number */
-#define CRON_NUM_OF_DIGITS(num) (abs(num) < 10 ? 1 : \
-                                (abs(num) < 100 ? 2 : \
-                                (abs(num) < 1000 ? 3 : \
-                                (abs(num) < 10000 ? 4 : \
-                                (abs(num) < 100000 ? 5 : \
-                                (abs(num) < 1000000 ? 6 : \
-                                (abs(num) < 10000000 ? 7 : \
-                                (abs(num) < 100000000 ? 8 : \
-                                (abs(num) < 1000000000 ? 9 : 10)))))))))
+#define CRON_SIZE_STRING_MAX_LEN 20
 
 #ifndef CRON_TEST_MALLOC
 #define cron_malloc(x) malloc(x)
@@ -525,16 +515,25 @@ static int to_upper(char* str) {
     return 0;
 }
 
-static char* to_string(int num) {
-    if (abs(num) >= CRON_MAX_NUM_TO_SRING) return NULL;
-    char* str = (char*) cron_malloc(CRON_NUM_OF_DIGITS(num) + 1);
-    if (!str) return NULL;
-    int res = sprintf(str, "%d", num);
-    if (res < 0) {
-        cron_free(str);
-        return NULL;
-    }
-    return str;
+static void strreverse(char* begin, char* end)
+{
+    char aux;
+    while (end > begin)
+        aux = *end, *end-- = *begin, *begin++ = aux;
+}
+
+// included from https://github.com/client9/stringencoders/blob/master/src/modp_numtoa.c
+size_t to_string(size_t value, char* str)
+{
+    char* wstr = str;
+    /* Conversion. Number is reversed. */
+    do
+        *wstr++ = (char)(48 + (value % 10));
+    while (value /= 10);
+    *wstr = '\0';
+    /* Reverse string */
+    strreverse(str, wstr - 1);
+    return (size_t)(wstr - str);
 }
 
 static char* str_replace(char *orig, const char *rep, const char *with) {
@@ -670,16 +669,12 @@ static char* replace_ordinals(char* value, const char* const * arr, size_t arr_l
     char* cur = value;
     char* res = NULL;
     int first = 1;
+    char strnum[CRON_SIZE_STRING_MAX_LEN + 1];
+
     for (i = 0; i < arr_len; i++) {
-        char* strnum = to_string((int) i);
-        if (!strnum) {
-            if (!first) {
-                cron_free(cur);
-            }
-            return NULL;
-        }
+        to_string(i, strnum);
+
         res = str_replace(cur, arr[i], strnum);
-        cron_free(strnum);
         if (!first) {
             cron_free(cur);
         }
