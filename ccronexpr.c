@@ -94,7 +94,9 @@ static time_t cron_mktime_gm(struct tm* tm) {
 /* https://www.nongnu.org/avr-libc/user-manual/group__avr__time.html */
     return mk_gmtime(tm);
 #elif defined(ESP8266) || defined(ESP_PLATFORM) || defined(TARGET_LIKE_MBED)
-#error "timegm() is not supported in ESP platform, please use this library with CRON_USE_LOCAL_TIME"
+
+#error "timegm() is not supported on the ESP platform, please use this library with CRON_USE_LOCAL_TIME"
+
 #elif defined(ANDROID) && !defined(__LP64__)
     /* https://github.com/adobe/chromium/blob/cfe5bf0b51b1f6b9fe239c2a3c2f2364da9967d7/base/os_compat_android.cc#L20 */
     static const time_t kTimeMax = ~(1L << (sizeof (time_t) * CHAR_BIT - 1));
