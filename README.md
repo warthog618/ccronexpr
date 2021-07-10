@@ -75,8 +75,8 @@ Changelog
 * added GitHub Workflow for continuous testing
 * fixed type casts to support `-Wconvert`
 * added tests for cron_prev and leap years
-* fixed tests to work on ESP platform
 * fixed tests to work with `CRON_USE_LOCAL_TIME`
+* added [ESP-IDF](./ESP-IDF.md) usage guide
 
 **2019-03-27**
 
