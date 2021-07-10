@@ -221,8 +221,8 @@ static char* strdupl(const char* str, size_t len) {
     if (!str) return NULL;
     char* res = (char*) cron_malloc(len + 1);
     if (!res) return NULL;
-    memset(res, 0, len + 1);
     memcpy(res, str, len);
+    res[len] = '\0';
     return res;
 }
 
