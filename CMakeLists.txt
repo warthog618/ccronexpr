@@ -17,6 +17,10 @@ if(CRON_USE_LOCAL_TIME)
     target_compile_definitions(ccronexpr PUBLIC CRON_USE_LOCAL_TIME=${CRON_USE_LOCAL_TIME})
 endif()
 
+if(MSVC)
+    target_compile_definitions(ccronexpr PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 # Tests
 enable_testing()
 add_subdirectory(test)
