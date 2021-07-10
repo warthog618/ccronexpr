@@ -10,7 +10,7 @@ Supports cron expressions with `seconds` field. Based on implementation of [Cron
 
 Compiles and should work on Linux (GCC/Clang), Mac OS (Clang), Windows (MSVC), Android NDK, iOS and possibly on other platforms with `time.h` support.
 
-Supports compilation in C (89) and in C++ modes.
+Supports compilation in C (99) and in C++ modes.
 
 Usage example
 -------------
@@ -29,11 +29,11 @@ Usage example
 Compilation and tests run examples
 ----------------------------------
 
-    gcc ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -DCRON_TEST_MALLOC -o a.out && ./a.out
+    gcc ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c99 -DCRON_TEST_MALLOC -o a.out && ./a.out
     g++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -o a.out && ./a.out
     g++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
 
-    clang ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -DCRON_TEST_MALLOC -o a.out && ./a.out
+    clang ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c99 -DCRON_TEST_MALLOC -o a.out && ./a.out
     clang++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -o a.out && ./a.out
     clang++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
 
@@ -59,7 +59,7 @@ processed as UTC (GMT) dates without timezone infomation.
 
 To use local dates (current system timezone) instead of GMT compile with `-DCRON_USE_LOCAL_TIME`, example:
 
-    gcc -DCRON_USE_LOCAL_TIME ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -DCRON_TEST_MALLOC -o a.out && TZ="America/Toronto" ./a.out
+    gcc -DCRON_USE_LOCAL_TIME ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c99 -DCRON_TEST_MALLOC -o a.out && TZ="America/Toronto" ./a.out
 
 License information
 -------------------
