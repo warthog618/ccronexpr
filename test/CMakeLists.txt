@@ -5,7 +5,6 @@ project(ccronexpr_test)
 # Test executable
 add_executable(ccronexpr_test ../ccronexpr_test.c)
 target_compile_features(ccronexpr_test PRIVATE c_std_99)
-target_compile_definitions(ccronexpr_test PUBLIC CRON_TEST_MALLOC=1)
 target_include_directories(ccronexpr_test PRIVATE .)
 target_link_libraries(ccronexpr_test ccronexpr)
 

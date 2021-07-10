@@ -45,7 +45,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         working-directory: ${{github.workspace}}/build
-        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE ${{ matrix.cron_use_local_time }}
+        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCRON_TEST_MALLOC=1 ${{ matrix.cron_use_local_time }}
         env:
           CFLAGS: ${{ matrix.char_c_flag }}
 
