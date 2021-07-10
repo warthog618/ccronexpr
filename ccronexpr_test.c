@@ -155,8 +155,7 @@ int four_dec_num(const char *first) {
 /* strptime is not available in msvc */
 /* 2012-07-01_09:53:50 */
 /* 0123456789012345678 */
-struct tm* poors_mans_strptime(const char* str) {
-    struct tm* cal = (struct tm*) malloc(sizeof(struct tm));
+void poors_mans_strptime(const char* str, struct tm* cal) {
     assert(cal != NULL);
     memset(cal, 0, sizeof(struct tm));
     cal->tm_year = four_dec_num(str) - 1900;
@@ -168,7 +167,6 @@ struct tm* poors_mans_strptime(const char* str) {
     cal->tm_min = two_dec_num(str + 14);
     cal->tm_sec = two_dec_num(str + 17);
     cal->tm_isdst = -1;
-    return cal;
 }
 
 void check_next(const char* pattern, const char* initial, const char* expected, int line) {
@@ -176,9 +174,10 @@ void check_next(const char* pattern, const char* initial, const char* expected, 
     cron_expr parsed;
     cron_parse_expr(pattern, &parsed, &err);
 
-    struct tm* calinit = poors_mans_strptime(initial);
+    struct tm calinit;
+    poors_mans_strptime(initial, &calinit);
 #ifdef CRON_USE_LOCAL_TIME
-    time_t dateinit = mktime(calinit);
+    time_t dateinit = mktime(&calinit);
 #else
     time_t dateinit = cron_mktime_gm(calinit);
 #endif
@@ -202,7 +201,6 @@ void check_next(const char* pattern, const char* initial, const char* expected, 
         assert(0);
     }
     free(buffer);
-    free(calinit);
 }
 
 void check_same(const char* expr1, const char* expr2) {
@@ -216,11 +214,11 @@ void check_same(const char* expr1, const char* expr2) {
 void check_calc_invalid() {
     cron_expr parsed;
     cron_parse_expr("0 0 0 31 6 *", &parsed, NULL);
-    struct tm * calinit = poors_mans_strptime("2012-07-01_09:53:50");
-    time_t dateinit = cron_mktime_gm(calinit);
+    struct tm calinit;
+    poors_mans_strptime("2012-07-01_09:53:50", &calinit);
+    time_t dateinit = cron_mktime_gm(&calinit);
     time_t res = cron_next(&parsed, dateinit);
     assert(INVALID_INSTANT == res);
-    free(calinit);
 }
 
 void check_expr_invalid(const char* expr) {
