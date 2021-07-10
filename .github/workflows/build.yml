@@ -12,11 +12,14 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build
 
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
         CMAKE_C_FLAGS:
           - "-fsigned-char"
           - "-funsigned-char"
@@ -24,6 +27,7 @@ jobs:
           - ""
           - "-DCRON_USE_LOCAL_TIME=1"
 
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
 
