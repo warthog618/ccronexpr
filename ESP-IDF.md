@@ -12,7 +12,6 @@ git submodule add https://github.com/mdvorak/ccronexpr.git libs/ccronexpr
 Reference it in the project CMakeLists.txt:
 ```cmake
 set(CRON_USE_LOCAL_TIME ON)
-set(CRON_DISABLE_TESTING ON)
 add_subdirectory(libs/ccronexpr)
 ```
 

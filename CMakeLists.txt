@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.0)
 project(ccronexpr)
 
-
 # Library
 add_library(ccronexpr STATIC ccronexpr.c)
 target_include_directories(ccronexpr PUBLIC .)
 
 if (ESP_PLATFORM)
     target_compile_definitions(ccronexpr PRIVATE ESP_PLATFORM=1)
+    set(CRON_DISABLE_TESTING ON) # disable tests automatically
 endif ()
 
 if (CRON_USE_LOCAL_TIME)
