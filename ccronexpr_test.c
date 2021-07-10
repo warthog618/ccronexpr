@@ -62,7 +62,7 @@ void cron_free(void* p) {
 #endif
 
 // declared in cronexpr.c
-time_t cron_mktime_gm(struct tm* tm);
+time_t cron_mktime(struct tm* tm);
 
 /**
  * uint8_t* replace char* for storing hit dates, set_bit and get_bit are used as handlers
@@ -176,11 +176,7 @@ void check_fn(cron_find_fn fn, const char* pattern, const char* initial, const c
 
     struct tm calinit;
     poors_mans_strptime(initial, &calinit);
-#ifdef CRON_USE_LOCAL_TIME
-    time_t dateinit = mktime(&calinit);
-#else
-    time_t dateinit = cron_mktime_gm(&calinit);
-#endif
+    time_t dateinit = cron_mktime(&calinit);
     assert(-1 != dateinit);
     time_t datenext = fn(&parsed, dateinit);
 #ifdef CRON_USE_LOCAL_TIME
@@ -216,7 +212,7 @@ void check_calc_invalid() {
     cron_parse_expr("0 0 0 31 6 *", &parsed, NULL);
     struct tm calinit;
     poors_mans_strptime("2012-07-01_09:53:50", &calinit);
-    time_t dateinit = cron_mktime_gm(&calinit);
+    time_t dateinit = cron_mktime(&calinit);
     time_t res = cron_next(&parsed, dateinit);
     assert(CRON_INVALID_INSTANT == res);
 }

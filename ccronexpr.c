@@ -84,7 +84,9 @@ time_t _mkgmtime(struct tm* tm);
 #endif /* __MINGW32__ */
 
 /* function definitions */
-time_t cron_mktime_gm(struct tm* tm) {
+#ifndef CRON_USE_LOCAL_TIME
+
+static time_t cron_mktime_gm(struct tm* tm) {
 #if defined(_WIN32)
 /* http://stackoverflow.com/a/22557778 */
     return _mkgmtime(tm);
@@ -92,24 +94,7 @@ time_t cron_mktime_gm(struct tm* tm) {
 /* https://www.nongnu.org/avr-libc/user-manual/group__avr__time.html */
     return mk_gmtime(tm);
 #elif defined(ESP8266) || defined(ESP_PLATFORM) || defined(TARGET_LIKE_MBED)
-    /* https://linux.die.net/man/3/timegm */
-    /* http://www.catb.org/esr/time-programming/ */
-    /* portable version of timegm() */
-    time_t ret;
-    char *tz;
-    tz = getenv("TZ");
-    if (tz)
-        tz = strdup(tz);
-    setenv("TZ", "UTC+0", 1);
-    tzset();
-    ret = mktime(tm);
-    if (tz) {
-        setenv("TZ", tz, 1);
-        free(tz);
-    } else
-        unsetenv("TZ");
-    tzset();
-    return ret;
+#error "timegm() is not supported in ESP platform, please use this library with CRON_USE_LOCAL_TIME"
 #elif defined(ANDROID) && !defined(__LP64__)
     /* https://github.com/adobe/chromium/blob/cfe5bf0b51b1f6b9fe239c2a3c2f2364da9967d7/base/os_compat_android.cc#L20 */
     static const time_t kTimeMax = ~(1L << (sizeof (time_t) * CHAR_BIT - 1));
@@ -122,7 +107,7 @@ time_t cron_mktime_gm(struct tm* tm) {
 #endif
 }
 
-struct tm* cron_time_gm(time_t* date, struct tm* out) {
+static struct tm* cron_time_gm(time_t* date, struct tm* out) {
 #if defined(__MINGW32__)
     (void)(out); /* To avoid unused warning */
     return gmtime(date);
@@ -138,12 +123,14 @@ struct tm* cron_time_gm(time_t* date, struct tm* out) {
 #endif
 }
 
-time_t cron_mktime_local(struct tm* tm) {
+#else
+
+static time_t cron_mktime_local(struct tm* tm) {
     tm->tm_isdst = -1;
     return mktime(tm);
 }
 
-struct tm* cron_time_local(time_t* date, struct tm* out) {
+static struct tm* cron_time_local(time_t* date, struct tm* out) {
 #if defined(_WIN32)
     errno_t err = localtime_s(out, date);
     return 0 == err ? out : NULL;
@@ -155,6 +142,8 @@ struct tm* cron_time_local(time_t* date, struct tm* out) {
     return localtime_r(date, out);
 #endif
 }
+
+#endif
 
 /* Defining 'cron_' time functions to use use UTC (default) or local time */
 #ifndef CRON_USE_LOCAL_TIME
