@@ -181,7 +181,7 @@ void check_fn(cron_find_fn fn, const char* pattern, const char* initial, const c
 #ifdef CRON_USE_LOCAL_TIME
     time_t dateinit = mktime(&calinit);
 #else
-    time_t dateinit = cron_mktime_gm(calinit);
+    time_t dateinit = cron_mktime_gm(&calinit);
 #endif
     assert(-1 != dateinit);
     time_t datenext = fn(&parsed, dateinit);
