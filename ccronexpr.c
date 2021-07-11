@@ -209,8 +209,9 @@ static void free_splitted(char** splitted, size_t len) {
 }
 
 static char* strdupl(const char* str, size_t len) {
+    char* res = NULL;
     if (!str) return NULL;
-    char* res = (char*) cron_malloc(len + 1);
+    res = (char*) cron_malloc(len + 1);
     if (!res) return NULL;
     memcpy(res, str, len);
     res[len] = '\0';
@@ -247,6 +248,7 @@ static void push_to_fields_arr(int* arr, int fi) {
 }
 
 static int add_to_field(struct tm* calendar, int field, int val) {
+    time_t res = 0;
     if (!calendar || -1 == field) {
         return 1;
     }
@@ -273,7 +275,7 @@ static int add_to_field(struct tm* calendar, int field, int val) {
     default:
         return 1; /* unknown field */
     }
-    time_t res = cron_mktime(calendar);
+    res = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == res) {
         return 1;
     }
@@ -284,6 +286,7 @@ static int add_to_field(struct tm* calendar, int field, int val) {
  * Reset the calendar setting all the fields provided to zero.
  */
 static int reset_min(struct tm* calendar, int field) {
+    time_t res = 0;
     if (!calendar || -1 == field) {
         return 1;
     }
@@ -312,7 +315,7 @@ static int reset_min(struct tm* calendar, int field) {
     default:
         return 1; /* unknown field */
     }
-    time_t res = cron_mktime(calendar);
+    res = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == res) {
         return 1;
     }
@@ -335,6 +338,7 @@ static int reset_all_min(struct tm* calendar, int* fields) {
 }
 
 static int set_field(struct tm* calendar, int field, int val) {
+    time_t res = 0;
     if (!calendar || -1 == field) {
         return 1;
     }
@@ -363,7 +367,7 @@ static int set_field(struct tm* calendar, int field, int val) {
     default:
         return 1; /* unknown field */
     }
-    time_t res = cron_mktime(calendar);
+    res = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == res) {
         return 1;
     }
@@ -497,8 +501,8 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
 }
 
 static int to_upper(char* str) {
+    int i = 0;
     if (!str) return 1;
-    int i;
     for (i = 0; '\0' != str[i]; i++) {
         int c = (int)str[i];
         str[i] = (char) toupper(c);
@@ -513,7 +517,7 @@ static void strreverse(char* begin, char* end)
         aux = *end, *end-- = *begin, *begin++ = aux;
 }
 
-// included from https://github.com/client9/stringencoders/blob/master/src/modp_numtoa.c
+/* included from https://github.com/client9/stringencoders/blob/master/src/modp_numtoa.c */
 size_t to_string(size_t value, char* str)
 {
     char* wstr = str;
@@ -567,9 +571,10 @@ static char* str_replace(char *orig, const char *rep, const char *with) {
 }
 
 static int parse_uint(const char* str, int* errcode) {
-    char* endptr;
+    char* endptr = NULL;
+    long int l;
     errno = 0;
-    long int l = strtol(str, &endptr, 10);
+    l = strtol(str, &endptr, 10);
     if (errno == ERANGE || *endptr != '\0' || l < 0 || l > INT_MAX) {
         *errcode = 1;
         return 0;
@@ -580,7 +585,7 @@ static int parse_uint(const char* str, int* errcode) {
 }
 
 static char** split_str(const char* str, char del, size_t* len_out) {
-    size_t i;
+    size_t i = 0;
     size_t stlen = 0;
     size_t len = 0;
     int accum = 0;
@@ -588,7 +593,7 @@ static char** split_str(const char* str, char del, size_t* len_out) {
     char** res = NULL;
     size_t bi = 0;
     size_t ri = 0;
-    char* tmp;
+    char* tmp = NULL;
 
     if (!str) goto return_error;
     for (i = 0; '\0' != str[i]; i++) {
@@ -681,7 +686,7 @@ static char* replace_ordinals(char* value, const char* const * arr, size_t arr_l
 }
 
 static int has_char(const char* str, char ch) {
-    size_t i;
+    size_t i = 0;
     if (!str) return 0;
     for (i = 0; str[i] != '\0'; i++) {
         if (str[i] == ch) return 1;
@@ -690,9 +695,10 @@ static int has_char(const char* str, char ch) {
 }
 
 static void get_range(const char* field, int min, int max, int* res, const char** error) {
-
     char** parts = NULL;
     size_t len = 0;
+    int err = 0;
+    int val;
     if (!res) {
         *error = "NULL";
         goto return_error;
@@ -704,8 +710,8 @@ static void get_range(const char* field, int min, int max, int* res, const char*
         res[0] = min;
         res[1] = max - 1;
     } else if (!has_char(field, '-')) {
-        int err = 0;
-        int val = parse_uint(field, &err);
+        err = 0;
+        val = parse_uint(field, &err);
         if (err) {
             *error = "Unsigned integer parse error 1";
             goto return_error;
@@ -719,7 +725,7 @@ static void get_range(const char* field, int min, int max, int* res, const char*
             *error = "Specified range requires two fields";
             goto return_error;
         }
-        int err = 0;
+        err = 0;
         res[0] = parse_uint(parts[0], &err);
         if (err) {
             *error = "Unsigned integer parse error 2";
@@ -753,9 +759,12 @@ static void get_range(const char* field, int min, int max, int* res, const char*
 }
 
 static void set_number_hits(const char* value, uint8_t* target, int min, int max, const char** error) {
-    size_t i;
-    int i1;
+    size_t i = 0;
+    int i1 = 0;
     size_t len = 0;
+    int range[2];
+    int err = 0;
+    int delta;
 
     char** fields = split_str(value, ',', &len);
     if (!fields) {
@@ -767,7 +776,6 @@ static void set_number_hits(const char* value, uint8_t* target, int min, int max
         if (!has_char(fields[i], '/')) {
             /* Not an incrementer so it must be a range (possibly empty) */
 
-            int range[2];
             get_range(fields[i], min, max, range, error);
 
             if (*error) {
@@ -786,7 +794,6 @@ static void set_number_hits(const char* value, uint8_t* target, int min, int max
                 free_splitted(split, len2);
                 goto return_result;
             }
-            int range[2];
             get_range(split[0], min, max, range, error);
             if (*error) {
                 free_splitted(split, len2);
@@ -795,8 +802,7 @@ static void set_number_hits(const char* value, uint8_t* target, int min, int max
             if (!has_char(split[0], '-')) {
                 range[1] = max - 1;
             }
-            int err = 0;
-            int delta = parse_uint(split[1], &err);
+            delta = parse_uint(split[1], &err);
             if (err) {
                 *error = "Unsigned integer parse error 4";
                 free_splitted(split, len2);
@@ -845,7 +851,7 @@ static void set_months(char* value, uint8_t* targ, const char** error) {
 }
 
 static void set_days_of_week(char* field, uint8_t* targ, const char** error) {
-    int max = 7;
+    const int max = 7;
     char* replaced = NULL;
 
     if (1 == strlen(field) && '?' == field[0]) {
@@ -935,18 +941,23 @@ time_t cron_next(cron_expr* expr, time_t date) {
 
      ...
      */
-    if (!expr) return CRON_INVALID_INSTANT;
     struct tm calval;
+    struct tm* calendar;
+    time_t original;
+    int res;
+    time_t calculated;
+
+    if (!expr) return CRON_INVALID_INSTANT;
     memset(&calval, 0, sizeof(struct tm));
-    struct tm* calendar = cron_time(&date, &calval);
+    calendar = cron_time(&date, &calval);
     if (!calendar) return CRON_INVALID_INSTANT;
-    time_t original = cron_mktime(calendar);
+    original = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == original) return CRON_INVALID_INSTANT;
 
-    int res = do_next(expr, calendar, calendar->tm_year);
+    res = do_next(expr, calendar, calendar->tm_year);
     if (0 != res) return CRON_INVALID_INSTANT;
 
-    time_t calculated = cron_mktime(calendar);
+    calculated = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == calculated) return CRON_INVALID_INSTANT;
     if (calculated == original) {
         /* We arrived at the original timestamp - round up to the next whole second and try again... */
@@ -993,6 +1004,7 @@ static int last_day_of_month(int month, int year) {
  * Reset the calendar setting all the fields provided to zero.
  */
 static int reset_max(struct tm* calendar, int field) {
+    time_t res = 0;
     if (!calendar || -1 == field) {
         return 1;
     }
@@ -1022,7 +1034,7 @@ static int reset_max(struct tm* calendar, int field) {
     default:
         return 1; /* unknown field */
     }
-    time_t res = cron_mktime(calendar);
+    res = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == res) {
         return 1;
     }
@@ -1189,20 +1201,24 @@ time_t cron_prev(cron_expr* expr, time_t date) {
 
      ...
      */
-    if (!expr) return CRON_INVALID_INSTANT;
     struct tm calval;
+    struct tm* calendar;
+    int res;
+    time_t original;
+    time_t calculated;
+    if (!expr) return CRON_INVALID_INSTANT;
     memset(&calval, 0, sizeof(struct tm));
-    struct tm* calendar = cron_time(&date, &calval);
+    calendar = cron_time(&date, &calval);
     if (!calendar) return CRON_INVALID_INSTANT;
-    time_t original = cron_mktime(calendar);
+    original = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == original) return CRON_INVALID_INSTANT;
 
     /* calculate the previous occurrence */
-    int res = do_prev(expr, calendar, calendar->tm_year);
+    res = do_prev(expr, calendar, calendar->tm_year);
     if (0 != res) return CRON_INVALID_INSTANT;
 
     /* check for a match, try from the next second if one wasn't found */
-    time_t calculated = cron_mktime(calendar);
+    calculated = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == calculated) return CRON_INVALID_INSTANT;
     if (calculated == original) {
         /* We arrived at the original timestamp - round up to the next whole second and try again... */
