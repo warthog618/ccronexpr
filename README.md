@@ -1,8 +1,7 @@
 Cron expression parsing in ANSI C
 =================================
 
-[![travis](https://travis-ci.org/staticlibs/ccronexpr.svg?branch=master)](https://travis-ci.org/staticlibs/ccronexpr)
-[![appveyor](https://ci.appveyor.com/api/projects/status/github/staticlibs/ccronexpr?svg=true)](https://ci.appveyor.com/project/staticlibs/ccronexpr)
+[![Build](https://github.com/mdvorak/ccronexpr/actions/workflows/build.yml/badge.svg)](https://github.com/mdvorak/ccronexpr/actions/workflows/build.yml)
 
 Given a cron expression and a date, you can get the next date which satisfies the cron expression.
 
