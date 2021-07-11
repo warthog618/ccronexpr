@@ -14,6 +14,10 @@ if (CRON_USE_LOCAL_TIME)
     target_compile_definitions(ccronexpr PUBLIC CRON_USE_LOCAL_TIME=1)
 endif ()
 
+if (CRON_COMPILE_AS_CXX)
+    target_compile_definitions(ccronexpr PUBLIC CRON_COMPILE_AS_CXX=1)
+endif ()
+
 if (MSVC)
     # Strict compilation
     target_compile_options(ccronexpr PRIVATE /W4 /WX)
