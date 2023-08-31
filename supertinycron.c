@@ -42,23 +42,21 @@ TinyCronJob optsFromEnv() {
 
 void usage() {
     printf("Usage: tinycron [expression] [command]\n");
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 void message(const char *err, const char *msg) {
-    if (err) {
-        if (strlen(msg) == 0) {
-            output(err);
-        } else {
-            char errMsg[512];
-            snprintf(errMsg, sizeof(errMsg), "%s %s", msg, err);
-            output(errMsg);
-        }
+    if (strlen(msg) == 0) {
+        output(err);
+    } else {
+        char errMsg[512];
+        snprintf(errMsg, sizeof(errMsg), "%s %s", msg, err);
+        output(errMsg);
     }
 }
 
 void messageInt(int err, const char *msg) {
-    message(strerror(err), msg);
+    if (err) message(strerror(err), msg);
 }
 
 void run(TinyCronJob *job) {
@@ -66,11 +64,10 @@ void run(TinyCronJob *job) {
         message(job->cmd, "running job:");
     }
 
-    int err = system(job->cmd);
-    if (err) messageInt(err, "job failed:");
+    messageInt(system(job->cmd), "job failed:");
 }
 
-void nap(TinyCronJob *job) {
+int nap(TinyCronJob *job) {
     time_t current_time = time(NULL);
     time_t next_run;
 
@@ -80,7 +77,7 @@ void nap(TinyCronJob *job) {
 
     if (err) {
         message(err, "error parsing cron expression:");
-        return;
+        return 1;
     }
 
     next_run = cron_next(&expr, current_time);
@@ -94,6 +91,7 @@ void nap(TinyCronJob *job) {
 
     int sleep_duration = next_run - current_time;
     sleep(sleep_duration);
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -149,7 +147,10 @@ int main(int argc, char *argv[]) {
     job.cmd = cmd;
 
     while (1) {
-        nap(&job);
+        if (nap(&job)) {
+            perror("fatal error");
+            break;
+        }
         run(&job);
     }
 
