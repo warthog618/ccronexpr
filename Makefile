@@ -1,4 +1,4 @@
-CC = gcc
+CC = musl-gcc
 VERSION := $(shell git rev-parse --short HEAD)-$(shell date +%Y%m%d%H%M%S)
 UNCOMMITTED_CHANGES := $(shell git status --porcelain)
 ifeq ($(strip $(UNCOMMITTED_CHANGES)),)
@@ -6,7 +6,7 @@ ifeq ($(strip $(UNCOMMITTED_CHANGES)),)
 else
     VERSION := $(VERSION)-dev-build
 endif
-CFLAGS = -s -Os -m32 -ffunction-sections -fdata-sections -Wl,--gc-sections -Wl,-z,norelro -static -DVERSION=\"$(VERSION)\"
+CFLAGS = -s -Os -ffunction-sections -fdata-sections -Wl,--gc-sections -Wl,-z,norelro -static -DVERSION=\"$(VERSION)\"
 SOURCES = supertinycron.c ccronexpr.c ccronexpr_test.c
 OBJECTS = supertinycron.o ccronexpr.o
 OBJECTS_TEST = ccronexpr_test.o ccronexpr.o
