@@ -2,9 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <time.h>
-#include <signal.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 #include "ccronexpr.h"
