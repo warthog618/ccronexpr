@@ -7,6 +7,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "ccronexpr.h"
+
 #ifndef VERSION
     #define VERSION "dev-build"
 #endif
@@ -46,7 +48,7 @@ void usage() {
     exit(1);
 }
 
-void errHandler(const char *err, const char *msg) {
+void message(const char *err, const char *msg) {
     if (err) {
         if (strlen(msg) == 0) {
             output(err);
@@ -58,20 +60,18 @@ void errHandler(const char *err, const char *msg) {
     }
 }
 
-void errHandlerInt(int err, const char *msg) {
-    errHandler(strerror(err), msg);
+void messageInt(int err, const char *msg) {
+    message(strerror(err), msg);
 }
 
 void run(TinyCronJob *job) {
     if (job->verbose) {
-        errHandler(job->cmd, "running job:");
+        message(job->cmd, "running job:");
     }
 
     int err = system(job->cmd);
-    errHandlerInt(err, "job failed:");
+    messageInt(err, "job failed:");
 }
-
-#include "ccronexpr.h"
 
 void nap(TinyCronJob *job) {
     time_t current_time = time(NULL);
@@ -82,7 +82,7 @@ void nap(TinyCronJob *job) {
     cron_parse_expr(job->schedule, &expr, &err);
 
     if (err) {
-        errHandler(err, "error parsing cron expression:");
+        message(err, "error parsing cron expression:");
         return;
     }
 
@@ -91,8 +91,8 @@ void nap(TinyCronJob *job) {
     if (job->verbose) {
         char msg[512];
         struct tm *time_info = localtime(&next_run);
-        strftime(msg, sizeof(msg), "next job scheduled for %Y-%m-%d %H:%M:%S", time_info);
-        output(msg);
+        strftime(msg, sizeof(msg), "%Y-%m-%d %H:%M:%S", time_info);
+        message(msg, "next job scheduled for");
     }
 
     int sleep_duration = next_run - current_time;
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (argc <= 2) {
-        errHandlerInt(1, "incorrect number of arguments");
+        messageInt(1, "incorrect number of arguments");
         usage();
     }
 
