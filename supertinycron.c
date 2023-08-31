@@ -67,7 +67,7 @@ void run(TinyCronJob *job) {
     }
 
     int err = system(job->cmd);
-    messageInt(err, "job failed:");
+    if (err) messageInt(err, "job failed:");
 }
 
 void nap(TinyCronJob *job) {
@@ -124,10 +124,9 @@ int main(int argc, char *argv[]) {
 
     int cmd_len = 0;
     for (int i = 2; i < argc; i++) {
-        cmd_len += strlen(argv[i]);
+        cmd_len += strlen(argv[i]) * 2 + 3;
     }
 
-    cmd_len += argc - 3;
     cmd_len += 1;
 
     char *cmd = malloc(cmd_len);
@@ -136,11 +135,15 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
-    strcpy(cmd, argv[2]);
-
-    for (int i = 3; i < argc; i++) {
-        strcat(cmd, " ");
-        strcat(cmd, argv[i]);
+    for (int i = 2; i < argc; i++) {
+        strcat(cmd, "\"");
+        for(int j = 0; argv[i][j] != '\0'; j++) {
+            if(argv[i][j] == '\"' || argv[i][j] == '\\') {
+                strcat(cmd, "\\");
+            }
+            strncat(cmd, &argv[i][j], 1);
+        }
+        strcat(cmd, "\" ");
     }
 
     job.cmd = cmd;
