@@ -1,3 +1,48 @@
+# supertinycron
+A very small replacement for cron. Particularly useful within containers and for distributing cron tasks alongside a project as a standalone file.
+
+## Installing
+
+```bash
+make
+sudo mv supertinycron /usr/local/bin/
+```
+
+# Usage
+
+```
+supertinycron [expression] [command...]
+```
+
+Tinycron can be conveniently used in your scripts interpreter line:
+```bash
+#!/usr/local/bin/supertinycron */5 * * * * * * /bin/sh
+echo "Current time: $(date)"
+```
+
+Or invoked directly via commandline:
+```bash
+$ supertinycron '*/5 * * * * * *' /bin/echo hello
+```
+
+
+## Expressions
+
+Tinycron uses and supports expressions from the [cronexpr](https://github.com/exander77/supertinycron) library. Some examples:
+
+* `@daily` - run once daily, at midnight
+* `* 15 * * * * *` - run at minute `:15` of every hour
+* `*/30 * * * * * *` - run every 30 seconds
+
+## Config
+
+TinyCron can be configured by setting the below environmental variables to a non-empty value:
+
+Variable | Description
+--- | ---
+TINYCRON_VERBOSE | Enable verbose output
+
+
 Cron expression parsing in ANSI C
 =================================
 

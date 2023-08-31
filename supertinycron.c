@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+//#include <ctype.h>
 
 #include "ccronexpr.h"
 
@@ -59,6 +60,13 @@ void messageInt(int err, const char *msg) {
     if (err) message(strerror(err), msg);
 }
 
+void exitOnErr(int err, const char *msg) {
+    if (err) {
+        messageInt(err, msg);
+        exit(EXIT_FAILURE);
+    }
+}
+
 void run(TinyCronJob *job) {
     if (job->verbose) {
         message(job->cmd, "running job:");
@@ -94,6 +102,15 @@ int nap(TinyCronJob *job) {
     return 0;
 }
 
+char* find_nth(const char* str, char ch, int n) {
+    int count = 0;
+    while (*str) {
+        if (*str == ch && ++count == n) return (char*)str;
+        str++;
+    }
+    return NULL;
+}
+
 int main(int argc, char *argv[]) {
     signal(SIGCHLD, sigchld_handler);
     signal(SIGTERM, sig_handler);
@@ -118,43 +135,50 @@ int main(int argc, char *argv[]) {
     }
 
     TinyCronJob job = optsFromEnv();
-    job.schedule = argv[1];
 
-    int cmd_len = 0;
-    for (int i = 2; i < argc; i++) {
-        cmd_len += strlen(argv[i]) * 2 + 3;
+    int line_len = 0;
+    for (int i = 1; i < argc; i++) {
+        line_len += strlen(argv[i]);
     }
 
-    cmd_len += 1;
-
-    char *cmd = malloc(cmd_len);
-    if (!cmd) {
+    line_len += argc - 3;
+    line_len += 1;
+    
+    char *line = malloc(line_len);
+    if (!line) {
         perror("malloc");
         return EXIT_FAILURE;
     }
-    
+
+    strcpy(line, argv[1]);
+
     for (int i = 2; i < argc; i++) {
-        strcat(cmd, "\"");
-        for(int j = 0; argv[i][j] != '\0'; j++) {
-            if(argv[i][j] == '\"' || argv[i][j] == '\\') {
-                strcat(cmd, "\\");
-            }
-            strncat(cmd, &argv[i][j], 1);
-        }
-        strcat(cmd, "\" ");
+        strcat(line, " ");
+        strcat(line, argv[i]);
+    }
+    
+    if (job.verbose) {
+        message(line, "line");
     }
 
-    job.cmd = cmd;
+    job.schedule = line;
+    job.cmd = find_nth(line, ' ', 6);
+    if (!job.cmd) {
+        messageInt(1, "incomplete cron expression");
+        usage();
+    }
+    *job.cmd = '\0';
+    ++job.cmd;
 
     while (1) {
         if (nap(&job)) {
-            perror("fatal error");
+            perror("error creating job");
             break;
         }
         run(&job);
     }
 
-    free(cmd);
+    free(line);
 
     return EXIT_SUCCESS;
 }
