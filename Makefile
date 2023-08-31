@@ -6,7 +6,7 @@ ifeq ($(strip $(UNCOMMITTED_CHANGES)),)
 else
     VERSION := $(VERSION)-dev-build
 endif
-CFLAGS = -static -DVERSION=\"$(VERSION)\"
+CFLAGS = -s -Os -m32 -ffunction-sections -fdata-sections -Wl,--gc-sections -Wl,-z,norelro -static -DVERSION=\"$(VERSION)\"
 SOURCES = supertinycron.c ccronexpr.c ccronexpr_test.c
 OBJECTS = supertinycron.o ccronexpr.o
 OBJECTS_TEST = ccronexpr_test.o ccronexpr.o
@@ -22,4 +22,4 @@ $(EXECUTABLE_TEST): $(OBJECTS_TEST)
 	$(CC) $(CFLAGS) $(OBJECTS_TEST) -o $@
 
 clean:
-	rm -f $(OBJECTS) $(EXECUTABLE)
+	rm -f $(OBJECTS) $(OBJECTS_TEST) $(EXECUTABLE) $(EXECUTABLE_TEST)
