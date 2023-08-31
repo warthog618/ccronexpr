@@ -4,36 +4,32 @@
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
-#define VERSION "dev-build"
+#ifndef VERSION
+    #define VERSION "dev-build"
+#endif
 
 typedef struct {
     char* cmd;
-    char* args;
     char* schedule;
     int verbose;
 } TinyCronJob;
 
-void output(const char *msg, ...) {
+void output(const char *msg) {
     printf("[tinycron] %s\n", msg);
 }
 
-void errHandler(int err, const char *msg) {
-    if (err) {
-        if (strlen(msg) == 0) {
-            output(strerror(err));
-        } else {
-            char errMsg[512];
-            snprintf(errMsg, sizeof(errMsg), "%s %s", msg, strerror(err));
-            output(errMsg);
-        }
-    }
+void sigchld_handler(int signo) {
+    (void) signo;
+    while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
-void exitOnErr(int err, const char *msg) {
-    if (err) {
-        errHandler(err, msg);
-        exit(1);
+void sig_handler(int signo) {
+    if (signo == SIGTERM || signo == SIGINT) {
+        output("terminated");
+        _exit(0);
     }
 }
 
@@ -50,18 +46,29 @@ void usage() {
     exit(1);
 }
 
-void run(TinyCronJob *job) {
-    char command[512];
-    snprintf(command, sizeof(command), "%s %s", job->cmd, job->args);
+void errHandler(const char *err, const char *msg) {
+    if (err) {
+        if (strlen(msg) == 0) {
+            output(err);
+        } else {
+            char errMsg[512];
+            snprintf(errMsg, sizeof(errMsg), "%s %s", msg, err);
+            output(errMsg);
+        }
+    }
+}
 
+void errHandlerInt(int err, const char *msg) {
+    errHandler(strerror(err), msg);
+}
+
+void run(TinyCronJob *job) {
     if (job->verbose) {
-        char msg[512];
-        snprintf(msg, sizeof(msg), "running job: %s %s", job->cmd, job->args);
-        output(msg);
+        errHandler(job->cmd, "running job:");
     }
 
-    int err = system(command);
-    errHandler(err, "job failed");
+    int err = system(job->cmd);
+    errHandlerInt(err, "job failed:");
 }
 
 #include "ccronexpr.h"
@@ -75,9 +82,7 @@ void nap(TinyCronJob *job) {
     cron_parse_expr(job->schedule, &expr, &err);
 
     if (err) {
-        char errMsg[512];
-        snprintf(errMsg, sizeof(errMsg), "error parsing cron expression: %s", err);
-        output(errMsg);
+        errHandler(err, "error parsing cron expression:");
         return;
     }
 
@@ -95,13 +100,17 @@ void nap(TinyCronJob *job) {
 }
 
 int main(int argc, char *argv[]) {
+    signal(SIGCHLD, sigchld_handler);
+    signal(SIGTERM, sig_handler);
+    signal(SIGINT,  sig_handler);
+
     if (argc < 2) {
         usage();
     }
 
     if (strcmp(argv[1], "version") == 0) {
         printf("tinycron version %s\n", VERSION);
-        exit(0);
+        return EXIT_SUCCESS;
     }
 
     if (strcmp(argv[1], "help") == 0) {
@@ -109,19 +118,42 @@ int main(int argc, char *argv[]) {
     }
 
     if (argc <= 2) {
-        errHandler(1, "incorrect number of arguments");
+        errHandlerInt(1, "incorrect number of arguments");
         usage();
     }
 
     TinyCronJob job = optsFromEnv();
     job.schedule = argv[1];
-    job.cmd = argv[2];
-    job.args = argv[3];
+
+    int cmd_len = 0;
+    for (int i = 2; i < argc; i++) {
+        cmd_len += strlen(argv[i]);
+    }
+
+    cmd_len += argc - 3;
+    cmd_len += 1;
+
+    char *cmd = malloc(cmd_len);
+    if (!cmd) {
+        perror("malloc");
+        return EXIT_FAILURE;
+    }
+    
+    strcpy(cmd, argv[2]);
+
+    for (int i = 3; i < argc; i++) {
+        strcat(cmd, " ");
+        strcat(cmd, argv[i]);
+    }
+
+    job.cmd = cmd;
 
     while (1) {
         nap(&job);
         run(&job);
     }
 
-    return 0;
+    free(cmd);
+
+    return EXIT_SUCCESS;
 }
