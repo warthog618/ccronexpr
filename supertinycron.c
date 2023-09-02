@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-//#include <ctype.h>
+#include <signal.h>
 
 #include "ccronexpr.h"
 
@@ -137,7 +137,8 @@ int main(int argc, char *argv[]) {
     TinyCronJob job = optsFromEnv();
 
     int line_len = 0;
-    for (int i = 1; i < argc; i++) {
+    int i;
+    for (i = 1; i < argc; i++) {
         line_len += strlen(argv[i]);
     }
 
@@ -152,7 +153,7 @@ int main(int argc, char *argv[]) {
 
     strcpy(line, argv[1]);
 
-    for (int i = 2; i < argc; i++) {
+    for (i = 2; i < argc; i++) {
         strcat(line, " ");
         strcat(line, argv[i]);
     }

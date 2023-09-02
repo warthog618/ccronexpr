@@ -190,20 +190,14 @@ uint8_t cron_get_bit(const uint8_t* rbyte, int idx) {
     uint8_t j = (uint8_t) (idx / 8);
     uint8_t k = (uint8_t) (idx % 8);
 
-    if (rbyte[j] & (1 << k)) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return (rbyte[j] & (1 << k)) ? 1 : 0;
 }
 
 static void free_splitted(char** splitted, size_t len) {
     size_t i;
     if (!splitted) return;
     for (i = 0; i < len; i++) {
-        if (splitted[i]) {
-            cron_free(splitted[i]);
-        }
+        if (splitted[i]) cron_free(splitted[i]);
     }
     cron_free(splitted);
 }
@@ -233,9 +227,7 @@ static int next_set_bit(uint8_t* bits, int max, int from_index, int* notfound) {
 
 static void push_to_fields_arr(int* arr, int fi) {
     int i;
-    if (!arr || -1 == fi) {
-        return;
-    }
+    if (!arr || -1 == fi) return;
     for (i = 0; i < CRON_CF_ARR_LEN; i++) {
         if (arr[i] == fi) return;
     }
@@ -249,9 +241,7 @@ static void push_to_fields_arr(int* arr, int fi) {
 
 static int add_to_field(struct tm* calendar, int field, int val) {
     time_t res = 0;
-    if (!calendar || -1 == field) {
-        return 1;
-    }
+    if (!calendar || -1 == field) return 1;
     switch (field) {
     case CRON_CF_SECOND:
         calendar->tm_sec = calendar->tm_sec + val;
@@ -276,10 +266,7 @@ static int add_to_field(struct tm* calendar, int field, int val) {
         return 1; /* unknown field */
     }
     res = cron_mktime(calendar);
-    if (CRON_INVALID_INSTANT == res) {
-        return 1;
-    }
-    return 0;
+    return CRON_INVALID_INSTANT == res ? 1 : 0;
 }
 
 /**
@@ -287,9 +274,7 @@ static int add_to_field(struct tm* calendar, int field, int val) {
  */
 static int reset_min(struct tm* calendar, int field) {
     time_t res = 0;
-    if (!calendar || -1 == field) {
-        return 1;
-    }
+    if (!calendar || -1 == field) return 1;
     switch (field) {
     case CRON_CF_SECOND:
         calendar->tm_sec = 0;
@@ -316,18 +301,13 @@ static int reset_min(struct tm* calendar, int field) {
         return 1; /* unknown field */
     }
     res = cron_mktime(calendar);
-    if (CRON_INVALID_INSTANT == res) {
-        return 1;
-    }
-    return 0;
+    return CRON_INVALID_INSTANT == res ? 1 : 0;
 }
 
 static int reset_all_min(struct tm* calendar, int* fields) {
     int i;
     int res = 0;
-    if (!calendar || !fields) {
-        return 1;
-    }
+    if (!calendar || !fields) return 1;
     for (i = 0; i < CRON_CF_ARR_LEN; i++) {
         if (-1 != fields[i]) {
             res = reset_min(calendar, fields[i]);
@@ -339,9 +319,7 @@ static int reset_all_min(struct tm* calendar, int* fields) {
 
 static int set_field(struct tm* calendar, int field, int val) {
     time_t res = 0;
-    if (!calendar || -1 == field) {
-        return 1;
-    }
+    if (!calendar || -1 == field) return 1;
     switch (field) {
     case CRON_CF_SECOND:
         calendar->tm_sec = val;
@@ -368,10 +346,7 @@ static int set_field(struct tm* calendar, int field, int val) {
         return 1; /* unknown field */
     }
     res = cron_mktime(calendar);
-    if (CRON_INVALID_INSTANT == res) {
-        return 1;
-    }
-    return 0;
+    return CRON_INVALID_INSTANT == res ? 1 : 0;
 }
 
 /**
@@ -671,16 +646,10 @@ static char* replace_ordinals(char* value, const char* const * arr, size_t arr_l
         to_string(i, strnum);
 
         res = str_replace(cur, arr[i], strnum);
-        if (!first) {
-            cron_free(cur);
-        }
-        if (!res) {
-            return NULL;
-        }
+        if (!first) cron_free(cur);
+        if (!res) return NULL;
         cur = res;
-        if (first) {
-            first = 0;
-        }
+        if (first) first = 0;
     }
     return res;
 }
@@ -784,7 +753,6 @@ static void set_number_hits(const char* value, uint8_t* target, int min, int max
 
             for (i1 = range[0]; i1 <= range[1]; i1++) {
                 cron_set_bit(target, i1);
-
             }
         } else {
             size_t len2 = 0;
@@ -1005,9 +973,7 @@ static int last_day_of_month(int month, int year) {
  */
 static int reset_max(struct tm* calendar, int field) {
     time_t res = 0;
-    if (!calendar || -1 == field) {
-        return 1;
-    }
+    if (!calendar || -1 == field) return 1;
     switch (field) {
     case CRON_CF_SECOND:
         calendar->tm_sec = 59;
@@ -1035,10 +1001,7 @@ static int reset_max(struct tm* calendar, int field) {
         return 1; /* unknown field */
     }
     res = cron_mktime(calendar);
-    if (CRON_INVALID_INSTANT == res) {
-        return 1;
-    }
-    return 0;
+    return CRON_INVALID_INSTANT == res ? 1 : 0;
 }
 
 static int reset_all_max(struct tm* calendar, int* fields) {
