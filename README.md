@@ -59,7 +59,7 @@ The asterisk indicates that the cron expression matches for all values of the fi
 Hyphens define ranges. For example, using hypen in the Year field: `2000-2010` indicates every year between `2000` and `2010` AD, inclusive.
 
 #### Slash `/`
-Slashes describe increments of ranges. For example, using slash in the Mintue field: `3-59/15` indicates the third minute of the hour and every 15 minutes thereafter. The form `*/...` is equivalent to the form "first-last/...", that is, an increment over the largest possible range of the field.
+Slashes describe increments of ranges. For example, using slash in the Minute field: `3-59/15` indicates the third minute of the hour and every 15 minutes thereafter. The form `*/...` is equivalent to the form "first-last/...", that is, an increment over the largest possible range of the field.
 
 #### Comma `,`
 Commas are used to separate items of a list. For example, using comma in Day of week field: `MON,WED,FRI` means Mondays, Wednesdays and Fridays.
@@ -104,7 +104,7 @@ Predefined cron expressions
     @weekly     Run once a week at midnight in the morning of Sunday                    0 0 0 * * 0 *
     @daily      Run once a day at midnight                                              0 0 0 * * * *
     @hourly     Run once an hour at the beginning of the hour                           0 0 * * * * *
-    @minutely   Run once a minute at the beginning of mintue                            0 * * * * * *
+    @minutely   Run once a minute at the beginning of minute                            0 * * * * * *
     @secondly   Run once every second                                                   * * * * * * *
     @reboot     Not supported
 
