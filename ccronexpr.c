@@ -1134,8 +1134,13 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
             expression = "0 0 0 * * * *";
         } else if (!strcmp("hourly", expression)) {
             expression = "0 0 * * * * *";
+        } else if (!strcmp("minutely", expression)) {
+            expression = "0 * * * * * *";
+        } else if (!strcmp("secondly", expression)) {
+            expression = "* * * * * * *";
         } else if (!strcmp("reboot", expression)) {
-            /* TODO handle running now */
+            *error = "@reboot not implemented";
+            goto return_res;
         }
     }
 

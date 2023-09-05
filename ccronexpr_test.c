@@ -497,6 +497,8 @@ void test_parse() {
     check_same("@daily", "0 0 0 * * * *");
     check_same("@midnight", "0 0 0 * * * *");
     check_same("@hourly", "0 0 * * * * *");
+    check_same("@minutely", "0 * * * * * *");
+    check_same("@secondly", "* * * * * * *");
 
     check_same("* * * 2 * *", "* * * 2 * ?");
     check_same("* * * 2 * *", "* * * 2 * ?");
