@@ -139,11 +139,6 @@ int main(int argc, char *argv[]) {
         usage();
     }
 
-    if (argc <= 1) {
-        messageInt(1, "incorrect number of arguments");
-        usage();
-    }
-
     TinyCronJob job = optsFromEnv();
 
     int line_len = 0;
