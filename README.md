@@ -30,68 +30,65 @@ Or invoked directly via commandline:
 $ supertinycron '*/5 * * * * * *' /bin/echo hello
 ```
 
-Implementation
---------------
-This reference follows:
-* [1] https://github.com/gorhill/cronexpr/blob/master/README.md
-* [2] https://www.javadoc.io/doc/org.quartz-scheduler/quartz/latest/org/quartz/CronExpression.html
-* [3] https://github.com/staticlibs/ccronexpr/blob/master/README.md
-* [4] https://github.com/mdvorak/ccronexpr/blob/main/README.md
-* [5] https://en.wikipedia.org/wiki/Cron#CRON_expression
+## Implementation
 
-		Field name     Mandatory?   Allowed values          Allowed special characters
-		----------     ----------   --------------          ---------------
-		Second         No           0-59                    * / , -
-		Minute         Yes          0-59                    * / , -
-		Hour           Yes          0-23                    * / , -
-		Day of month   Yes          1-31                    * / , - L W
-		Month          Yes          1-12 or JAN-DEC         * / , -
-		Day of week    Yes          0-6,7 or SAT-SUN,SAT    * / , - L #
-		Year           No           1970–2199               * / , -
+This reference is based on:
+- [1] [gorhill's cronexpr on GitHub](https://github.com/gorhill/cronexpr/blob/master/README.md)
+- [2] [Quartz Scheduler's CronExpression](https://www.javadoc.io/doc/org.quartz-scheduler/quartz/latest/org/quartz/CronExpression.html)
+- [3] [ccronexpr by staticlibs on GitHub](https://github.com/staticlibs/ccronexpr/blob/master/README.md)
+- [4] [ccronexpr by mdvorak on GitHub](https://github.com/mdvorak/ccronexpr/blob/main/README.md)
+- [5] [Wikipedia on CRON Expression](https://en.wikipedia.org/wiki/Cron#CRON_expression)
 
-Note that SAT is represented twice in Day of week as 0 and 7. This to comply with http://linux.die.net/man/5/crontab#.
-Note that Year spans to 2199, that follows [2] and is different from [1] which is only 2099.
+```
+Field name     Mandatory?   Allowed values          Allowed special characters
+----------     ----------   --------------          -------------------------
+Second         No           0-59                    * / , -
+Minute         Yes          0-59                    * / , -
+Hour           Yes          0-23                    * / , -
+Day of month   Yes          1-31                    * / , - L W
+Month          Yes          1-12 or JAN-DEC         * / , -
+Day of week    Yes          0-6 or SUN-SAT          * / , - L #
+Year           No           1970–2199               * / , -
+```
+
+**Note:** In the 'Day of week' field, both 0 and 7 represent SAT, as referenced by [crontab's man page](http://linux.die.net/man/5/crontab#). The 'Year' field spans to 2199 as per [2], which differs from [1] where it's up to 2099.
+
+### Special Characters
 
 #### Asterisk `*`
-The asterisk indicates that the cron expression matches for all values of the field. For example, using an asterisk in the Month field indicates every month.
+The asterisk indicates that the cron expression matches all values of the field. For instance, an asterisk in the 'Month' field matches every month.
 
 #### Hyphen `-`
-Hyphens define ranges. For example, using hypen in the Year field: `2000-2010` indicates every year between `2000` and `2010` AD, inclusive.
+Hyphens define ranges. For instance, `2000-2010` in the 'Year' field matches every year from 2000 to 2010, inclusive.
 
 #### Slash `/`
-Slashes describe increments of ranges. For example, using slash in the Minute field: `3-59/15` indicates the third minute of the hour and every 15 minutes thereafter. The form `*/...` is equivalent to the form "first-last/...", that is, an increment over the largest possible range of the field.
+Slashes specify increments within ranges. For example, `3-59/15` in the 'Minute' field matches the third minute of the hour and every 15 minutes thereafter. The form `*/...` is equivalent to "first-last/...", representing an increment over the full range of the field.
 
 #### Comma `,`
-Commas are used to separate items of a list. For example, using comma in Day of week field: `MON,WED,FRI` means Mondays, Wednesdays and Fridays.
+Commas separate items in a list. For instance, `MON,WED,FRI` in the 'Day of week' field matches Mondays, Wednesdays, and Fridays.
 
 #### `L`
-`L` stands for "last". When used in the Day of week field, it allows you to specify constructs such as "the last Friday" (`5L`) of a given month. In the Day of month field, it specifies the last day of the month.
+The character `L` stands for "last". In the 'Day of week' field, `5L` denotes the last Friday of a given month. In the 'Day of month' field, it represents the last day of the month.
 
-If it is used in Day of week field by itlsef, it is equivalent to `7` or `SAT`, meaning expressions `* * * * * L *` and `* * * * * 7 *` are equivalent.
+- Using `L` alone in the 'Day of week' field is equivalent to `7` or `SAT`. Hence, expressions `* * * * * L *` and `* * * * * 7 *` are the same.
+  
+- When followed by another value in the 'Day of week' field, like `6L`, it signifies the last Friday of the month.
+  
+- If followed by a negative number in the 'Day of month' field, such as `L-3`, it indicates the third-to-last day of the month.
 
-If it is used in Day of week field after another value, it means "the last weekday of the month", where weekday is Monday, Tuesday, ..., Sunday. For eample, "6L" means "the last friday of the month".
-
-If it is used in Day of month field follow by a negative number. For example, "L-3", it means "third to last day of the calendar month".
-
-When using the 'L' option, it is important not to specify lists, or ranges of values, as you'll get confusing/unexpected results.
+When using 'L', avoid specifying lists or ranges to prevent ambiguous results.
 
 #### `W`
-The `W` character is allowed for the Day of month field. This character is used to specify the business day (Monday-Friday) nearest the given day. As an example, if you were to specify `15W` as the value for the Day of month field, the meaning is: "the nearest business day to the 15th of the month."
+The `W` character is exclusive to the 'Day of month' field. It indicates the closest business day (Monday-Friday) to the given day. For example, `15W` means the nearest business day to the 15th of the month. If you set 1W for the day-of-month and the 1st falls on a Saturday, the trigger activates on Monday the 3rd, since it respects the month's day boundaries and won't skip over them. Similarly, at the end of the month, the behavior ensures it doesn't "jump" over the boundary to the following month.
 
-So, if the 15th is a Saturday, the trigger fires on Friday the 14th. If the 15th is a Sunday, the trigger fires on Monday the 16th. If the 15th is a Tuesday, then it fires on Tuesday the 15th. However if you specify `1W` as the value for day-of-month, and the 1st is a Saturday, the trigger fires on Monday the 3rd, as it does not "jump" over the boundary of a month's days.
-
-The `W` character can be specified only when the Day of month is a single day, not a range or list of days.
-
-The `W` character can also be combined with `L`, i.e. `LW` to mean "the last business day of the month."
-
-By itself it equivalent to range `1-5`, meaning expressions `* * * W * * *` and `* * * * * 1-5 *` are equivalent. Note this is different from [1,2].
+The `W` character can also pair with `L` (as `LW`), signifying the last business day of the month. Alone, it's equivalent to the range `1-5`, making the expressions `* * * W * * *` and `* * * * * 1-5 *` identical. This interpretation differs from [1,2].
 
 #### Hash `#`
-`#` is allowed for the Day of week field, and must be followed by a number between one and five or their negative values. It allows you to specify constructs such as "the second Friday" of a given month.
+The `#` character is only for the 'Day of week' field and should be followed by a number between one and five, or their negative values. It lets you specify constructs like "the second Friday" of a month.
 
-This character is used to specify "the nth weekday day of the month". For example, the value of "6#3" in the Day of month field means the third Friday of the month (day 6 = Friday and "#3" = the 3rd one in the month). Other examples: "2#1" = the first Monday of the month and "4#5" = the fifth Wednesday of the month. Note that if you specify "#5" and there is not 5 of the given Day of week in the month, then no firing will occur that month. If the '#' character is used, there can only be one expression in the dy of week field ("3#1,6#3" is not valid, since there are two expressions).
+For example, `6#3` means the third Friday of the month. Note that if you use `#5` and there isn't a fifth occurrence of that weekday in the month, no firing occurs for that month. Using the '#' character requires a single expression in the 'Day of week' field.
 
-The nth value can also be negative. For example "#-1 means last, "#-2" means 2nd to last, etc., meaning expressions `* * * * * 6#-1 *` and `* * * * * 6L *` are equivalent.
+Negative nth values are also valid. For instance, `6#-1` is equivalent to `6L`.
 
 Predefined cron expressions
 ---------------------------
