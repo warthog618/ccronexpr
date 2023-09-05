@@ -21,13 +21,13 @@ supertinycron [expression] [command...]
 
 Supertinycron can be conveniently used in your scripts interpreter line:
 ```bash
-#!/usr/local/bin/supertinycron */5 * * * * * /bin/sh
+#!/usr/local/bin/supertinycron */5 * * * * * * /bin/sh
 echo "Current time: $(date)"
 ```
 
 Or invoked directly via commandline:
 ```bash
-$ supertinycron '*/5 * * * * *' /bin/echo hello
+$ supertinycron '*/5 * * * * * *' /bin/echo hello
 ```
 
 Implementation

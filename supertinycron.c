@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
     }
 
     job.schedule = line;
-    job.cmd = find_nth(line, ' ', 6);
+    job.cmd = find_nth(line, ' ', 7);
     if (!job.cmd) {
         messageInt(1, "incomplete cron expression");
         usage();
