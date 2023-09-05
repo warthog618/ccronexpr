@@ -18,7 +18,7 @@ typedef struct {
 } TinyCronJob;
 
 void output(const char *msg) {
-    printf("[tinycron] %s\n", msg);
+    printf("[supertinycron] %s\n", msg);
 }
 
 void sigchld_handler(int signo) {
@@ -42,7 +42,7 @@ TinyCronJob optsFromEnv() {
 }
 
 void usage() {
-    printf("Usage: tinycron [expression] [command]\n");
+    printf("Usage: supertinycron [expression] [command]\n");
     exit(EXIT_FAILURE);
 }
 
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (strcmp(argv[1], "version") == 0) {
-        printf("tinycron version %s\n", VERSION);
+        printf("supertinycron version %s\n", VERSION);
         return EXIT_SUCCESS;
     }
 
