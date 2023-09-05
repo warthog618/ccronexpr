@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
 
     line_len += argc - 3;
     line_len += 1;
-    
+
     char *line = malloc(line_len);
     if (!line) {
         perror("malloc");
@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
         strcat(line, " ");
         strcat(line, argv[i]);
     }
-    
+
     if (job.verbose) {
         message(line, "line");
     }

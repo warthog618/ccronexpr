@@ -35,7 +35,11 @@
 #define CRON_MAX_MINUTES 60
 #define CRON_MAX_HOURS 24
 #define CRON_MAX_DAYS_OF_MONTH 32
+#define CRON_MAX_DAYS_OF_WEEK 7
 #define CRON_MAX_MONTHS 12
+#define YEAR_OFFSET 1900
+#define CRON_MIN_YEARS 1970
+#define CRON_MAX_YEARS 2200
 #define CRON_MAX_YEARS_DIFF 4
 
 #define CRON_CF_SECOND 0
@@ -45,9 +49,9 @@
 #define CRON_CF_DAY_OF_MONTH 4
 #define CRON_CF_MONTH 5
 #define CRON_CF_YEAR 6
+#define CRON_CF_NEXT 7
 
 #define CRON_CF_ARR_LEN 7
-
 
 static const char* const DAYS_ARR[] = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
 #define CRON_DAYS_ARR_LEN 7
@@ -172,25 +176,19 @@ struct tm* cron_time(time_t* date, struct tm* out) {
  * Functions.
  */
 
-void cron_set_bit(uint8_t* rbyte, int idx) {
-    uint8_t j = (uint8_t) (idx / 8);
-    uint8_t k = (uint8_t) (idx % 8);
+#define GET_BYTE(idx) (uint8_t) (idx / 8)
+#define GET_BIT(idx)  (uint8_t) (idx % 8)
 
-    rbyte[j] |= (uint8_t)(1 << k);
+void cron_set_bit(uint8_t* rbyte, int idx) {
+    rbyte[GET_BYTE(idx)] |= (uint8_t)(1 << GET_BIT(idx));
 }
 
 void cron_del_bit(uint8_t* rbyte, int idx) {
-    uint8_t j = (uint8_t) (idx / 8);
-    uint8_t k = (uint8_t) (idx % 8);
-
-    rbyte[j] &= (uint8_t)~(1 << k);
+    rbyte[GET_BYTE(idx)] &= (uint8_t)~(1 << GET_BIT(idx));
 }
 
 uint8_t cron_get_bit(const uint8_t* rbyte, int idx) {
-    uint8_t j = (uint8_t) (idx / 8);
-    uint8_t k = (uint8_t) (idx % 8);
-
-    return (rbyte[j] & (1 << k)) ? 1 : 0;
+    return (rbyte[GET_BYTE(idx)] & (1 << GET_BIT(idx))) ? 1 : 0;
 }
 
 static void free_splitted(char** splitted, size_t len) {
@@ -304,18 +302,131 @@ static int reset_min(struct tm* calendar, int field) {
     return CRON_INVALID_INSTANT == res ? 1 : 0;
 }
 
-static int reset_all_min(struct tm* calendar, int* fields) {
+static int last_day_of_month(int month, int year) {
+    struct tm cal;
+    time_t t;
+    memset(&cal, 0, sizeof(cal));
+    cal.tm_sec = 0;
+    cal.tm_min = 0;
+    cal.tm_hour = 0;
+    cal.tm_mon = month + 1;
+    cal.tm_mday = 0;
+    cal.tm_year = year;
+    t = cron_mktime(&cal);
+    return cron_time(&t, &cal)->tm_mday;
+}
+
+#define DAY_SECONDS 24 * 60 * 60
+
+static int last_weekday_of_month(int month, int year) {
+    struct tm cal;
+    time_t t;
+    memset(&cal, 0, sizeof(cal));
+    cal.tm_sec = 0;
+    cal.tm_min = 0;
+    cal.tm_hour = 0;
+    cal.tm_mon = month + 1; /* next month */
+    cal.tm_mday = 0; /* last day of previous month (which is what we're trying to find) */
+    cal.tm_year = year; /* years since 1900 */
+    t = cron_mktime(&cal);
+
+    /* If the last day of the month is a Saturday (6) or Sunday (0), decrement the day.
+     * But it is shifted to (5) and (6). */
+    while (cron_time(&t, &cal)->tm_wday == 6 || cron_time(&t, &cal)->tm_wday == 0) {
+        t -= DAY_SECONDS; /* subtract a day */
+    }
+    return cron_time(&t, &cal)->tm_mday;
+}
+
+static int closest_weekday(int day_of_month, int month, int year) {
+    struct tm cal;
+    time_t t;
+    memset(&cal, 0, sizeof(cal));
+    cal.tm_sec = 0;
+    cal.tm_min = 0;
+    cal.tm_hour = 0;
+    cal.tm_mon = month; /* given month */
+    cal.tm_mday = day_of_month + 1;
+    cal.tm_year = year; /* years since 1900 */
+    t = cron_mktime(&cal);
+
+    int wday = cron_time(&t, &cal)->tm_wday;
+
+    /* If it's a Sunday */
+    if (wday == 0) {
+        if (day_of_month + 1 == last_day_of_month(month, year)) {
+            /* If it's the last day of the month, go to the previous Friday */
+            t -= 2 * DAY_SECONDS;
+        } else {
+            t += DAY_SECONDS; /* go to the next Monday */
+        }
+    }
+    /* If it's a Saturday */
+    else if (wday == 6) {
+        if (day_of_month == 0) {
+            /* If it's the first day of the month, go to the next Monday */
+            t += 2 * DAY_SECONDS;
+        } else {
+            t -= DAY_SECONDS; /* go to the previous Friday */
+        }
+    }
+
+    /* If it's a weekday */
+    return cron_time(&t, &cal)->tm_mday;
+}
+
+
+/**
+ * Reset the calendar setting all the fields provided to zero.
+ */
+static int reset_max(struct tm* calendar, int field) {
+    time_t res = 0;
+    if (!calendar || -1 == field) return 1;
+    switch (field) {
+    case CRON_CF_SECOND:
+        calendar->tm_sec = CRON_MAX_SECONDS-1;
+        break;
+    case CRON_CF_MINUTE:
+        calendar->tm_min = CRON_MAX_MINUTES-1;
+        break;
+    case CRON_CF_HOUR_OF_DAY:
+        calendar->tm_hour = CRON_MAX_HOURS-1;
+        break;
+    case CRON_CF_DAY_OF_WEEK:
+        calendar->tm_wday = CRON_MAX_DAYS_OF_WEEK-1;
+        break;
+    case CRON_CF_DAY_OF_MONTH:
+        calendar->tm_mday = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+        break;
+    case CRON_CF_MONTH:
+        calendar->tm_mon = CRON_MAX_MONTHS-1;
+        break;
+    case CRON_CF_YEAR:
+        /* I don't think this is supposed to happen ... */
+        fprintf(stderr, "reset CRON_CF_YEAR\n");
+        break;
+    default:
+        return 1; /* unknown field */;;
+    }
+    res = cron_mktime(calendar);
+    return CRON_INVALID_INSTANT == res ? 1 : 0;
+}
+
+static int reset_all(int (*fn)(struct tm* calendar, int field), struct tm* calendar, int* fields) {
     int i;
     int res = 0;
     if (!calendar || !fields) return 1;
     for (i = 0; i < CRON_CF_ARR_LEN; i++) {
         if (-1 != fields[i]) {
-            res = reset_min(calendar, fields[i]);
+            res = fn(calendar, fields[i]);
             if (0 != res) return res;
         }
     }
     return 0;
 }
+
+#define reset_all_min(calendar, fields) reset_all(reset_min, calendar, fields);
+#define reset_all_max(calendar, fields) reset_all(reset_max, calendar, fields);
 
 static int set_field(struct tm* calendar, int field, int val) {
     time_t res = 0;
@@ -353,10 +464,10 @@ static int set_field(struct tm* calendar, int field, int val) {
  * Search the bits provided for the next set bit after the value provided,
  * and reset the calendar.
  */
-static int find_next(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
+static int find_next_offset(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
     int notfound = 0;
     int err = 0;
-    int next_value = next_set_bit(bits, max, value, &notfound);
+    int next_value = next_set_bit(bits, max, value+offset, &notfound)-offset;
     /* roll over if needed */
     if (notfound) {
         err = add_to_field(calendar, nextField, 1);
@@ -379,11 +490,35 @@ static int find_next(uint8_t* bits, int max, int value, struct tm* calendar, int
     return 0;
 }
 
-static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int day_of_month, uint8_t* days_of_week, int day_of_week, int* resets, int* res_out) {
+static int find_next(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
+    return find_next_offset(bits, max, value, 0, calendar, field, nextField, lower_orders, res_out);
+}
+
+static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out) {
     int err;
     unsigned int count = 0;
     unsigned int max = 366;
-    while ((!cron_get_bit(days_of_month, day_of_month) || !cron_get_bit(days_of_week, day_of_week)) && count++ < max) {
+    int lastday;
+    while ((
+            !cron_get_bit(days_of_month, day_of_month) ||
+            !cron_get_bit(days_of_week, day_of_week) ||
+            (*flags && (
+            (cron_get_bit(flags, 0) && (
+                    last_day_of_month(calendar->tm_mon, calendar->tm_year) != day_of_month-1-*day_in_month)) ||
+            (cron_get_bit(flags, 1) && (
+                    last_weekday_of_month(calendar->tm_mon, calendar->tm_year) != day_of_month-1-*day_in_month)) ||
+            (cron_get_bit(flags, 2) && (
+                    closest_weekday(*day_in_month-1, calendar->tm_mon, calendar->tm_year) != day_of_month))
+            )) ||
+            (!*flags && (
+            (*day_in_month < 0 && (
+                    day_of_month <  (lastday=last_day_of_month(calendar->tm_mon, calendar->tm_year))+7**day_in_month+1 ||
+                    day_of_month >= lastday+7*(*day_in_month+1)+1)) ||
+            (*day_in_month > 0 && (
+                    day_of_month <  7*(*day_in_month-1)+1 ||
+                    day_of_month >= 7**day_in_month+1))
+            ))
+        ) && count++ < max) {
         err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, 1);
 
         if (err) goto return_error;
@@ -414,6 +549,8 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
     int update_day_of_month = 0;
     int month = 0;
     int update_month = 0;
+    int year = 0;
+    int update_year = 0;
 
     for (i = 0; i < CRON_CF_ARR_LEN; i++) {
         resets[i] = -1;
@@ -449,7 +586,7 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
 
     day_of_week = calendar->tm_wday;
     day_of_month = calendar->tm_mday;
-    update_day_of_month = find_next_day(calendar, expr->days_of_month, day_of_month, expr->days_of_week, day_of_week, resets, &res);
+    update_day_of_month = find_next_day(calendar, expr->days_of_month, expr->day_in_month, day_of_month, expr->days_of_week, day_of_week, expr->flags, resets, &res);
     if (0 != res) goto return_result;
     if (day_of_month == update_day_of_month) {
         push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
@@ -469,6 +606,15 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
         res = do_next(expr, calendar, dot);
         if (0 != res) goto return_result;
     }
+
+    year = calendar->tm_year;
+    update_year = find_next_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, year, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
+    if (0 != res) goto return_result;
+    if (year != update_year) {
+        res = do_next(expr, calendar, dot);
+        if (0 != res) goto return_result;
+    }
+
     goto return_result;
 
     return_result:
@@ -557,6 +703,10 @@ static int parse_uint(const char* str, int* errcode) {
         *errcode = 0;
         return (int) l;
     }
+}
+
+static unsigned int parse_int(const char* str, int* errcode) {
+    return *str == '-' ? -parse_uint(str+1, errcode) : parse_uint(str, errcode);
 }
 
 static char** split_str(const char* str, char del, size_t* len_out) {
@@ -654,11 +804,11 @@ static char* replace_ordinals(char* value, const char* const * arr, size_t arr_l
     return res;
 }
 
-static int has_char(const char* str, char ch) {
+static size_t has_char(const char* str, char ch) {
     size_t i = 0;
     if (!str) return 0;
     for (i = 0; str[i] != '\0'; i++) {
-        if (str[i] == ch) return 1;
+        if (str[i] == ch) return i;
     }
     return 0;
 }
@@ -727,7 +877,7 @@ static void get_range(const char* field, int min, int max, int* res, const char*
     free_splitted(parts, len);
 }
 
-static void set_number_hits(const char* value, uint8_t* target, int min, int max, const char** error) {
+static void set_number_hits_offset(const char* value, uint8_t* target, int min, int max, int offset, const char** error) {
     size_t i = 0;
     int i1 = 0;
     size_t len = 0;
@@ -752,7 +902,7 @@ static void set_number_hits(const char* value, uint8_t* target, int min, int max
             }
 
             for (i1 = range[0]; i1 <= range[1]; i1++) {
-                cron_set_bit(target, i1);
+                cron_set_bit(target, i1+offset);
             }
         } else {
             size_t len2 = 0;
@@ -782,7 +932,7 @@ static void set_number_hits(const char* value, uint8_t* target, int min, int max
                 goto return_result;
             }
             for (i1 = range[0]; i1 <= range[1]; i1 += delta) {
-                cron_set_bit(target, i1);
+                cron_set_bit(target, i1+offset);
             }
             free_splitted(split, len2);
         }
@@ -794,9 +944,13 @@ static void set_number_hits(const char* value, uint8_t* target, int min, int max
 
 }
 
+static void set_number_hits(const char* value, uint8_t* target, int min, int max, const char** error) {
+    set_number_hits_offset(value, target, min, max, 0, error);
+}
+
 static void set_months(char* value, uint8_t* targ, const char** error) {
     int i;
-    int max = 12;
+    int max = CRON_MAX_MONTHS;
 
     char* replaced = NULL;
 
@@ -818,40 +972,125 @@ static void set_months(char* value, uint8_t* targ, const char** error) {
     }
 }
 
-static void set_days_of_week(char* field, uint8_t* targ, const char** error) {
+static void set_years(char* value, uint8_t* targ, const char** error) {
+    int min = CRON_MIN_YEARS;
+    int max = CRON_MAX_YEARS;
+    set_number_hits_offset(value, targ, min, max, -min, error);
+}
+
+static void set_days_of_week(char* field, uint8_t* days_of_week, int8_t* day_in_month, const char** error) {
     const int max = 7;
     char* replaced = NULL;
+    size_t pos;
+    int err;
 
+    to_upper(field);
     if (1 == strlen(field) && '?' == field[0]) {
         field[0] = '*';
     }
-    to_upper(field);
+    if (field[0] == 'L' && 1 == strlen(field)) {
+        field[0] = '0';
+    } else if((pos = has_char(field, 'L'))) {
+        if (pos + 1 != strlen(field)) {
+            *error = "L has to be last";
+            return;
+        }
+        field[pos] = '\0';
+        *day_in_month = -1;
+    } else if((pos = has_char(field, '#'))) {
+        if (pos + 1 == strlen(field)) {
+            *error = "# can't be last";
+            return;
+        }
+        field[pos] = '\0';
+        *day_in_month = parse_int(field+pos+1, &err);
+        if (*day_in_month > 5 || *day_in_month < -5) {
+            *error = "# can follow with -5..5";
+            return;
+        }
+    }
     replaced = replace_ordinals(field, DAYS_ARR, CRON_DAYS_ARR_LEN);
     if (!replaced) {
         *error = "Invalid day format";
         return;
     }
-    set_number_hits(replaced, targ, 0, max + 1, error);
+    set_number_hits(replaced, days_of_week, 0, max + 1, error);
     cron_free(replaced);
-    if (cron_get_bit(targ, 7)) {
+
+    if (cron_get_bit(days_of_week, 7)) {
         /* Sunday can be represented as 0 or 7*/
-        cron_set_bit(targ, 0);
-        cron_del_bit(targ, 7);
+        cron_set_bit(days_of_week, 0);
+        cron_del_bit(days_of_week, 7);
     }
 }
 
-static void set_days_of_month(char* field, uint8_t* targ, const char** error) {
+static int set_days_of_month(char* field, uint8_t* days_of_month, uint8_t* days_of_week, int8_t* day_in_month, uint8_t* flags, const char** error) {
+    int i1;
+    int ret = 0;
+    size_t pos;
+    int err;
+
     /* Days of month start with 1 (in Cron and Calendar) so add one */
     if (1 == strlen(field) && '?' == field[0]) {
         field[0] = '*';
     }
-    set_number_hits(field, targ, 1, CRON_MAX_DAYS_OF_MONTH, error);
+    to_upper(field);
+    if (field[0] == 'L') {
+        *day_in_month = -1;
+        ret = 1;
+        if (1 == strlen(field) || field[1] == '-') {
+            /* Note 0..6 and not 1..7, see end of set_days_of_week. */
+            for (i1 = 0; i1 <= 6; i1++) {
+                cron_set_bit(days_of_week, i1);
+            }
+            cron_set_bit(flags, 0);
+            field[0] = '*';
+            if (field[1] == '-') {
+                *day_in_month += parse_int(field+1, &err);
+                field[1] = '\0';
+            }
+        } else if (field[1] == 'W' && 2 == strlen(field)) {
+            for (i1 = 1; i1 <= 5; i1++) {
+                cron_set_bit(days_of_week, i1);
+            }
+            cron_set_bit(flags, 1);
+            field[0] = '*';
+            field[1] = '\0';
+        } else {
+            *error = "L should continue with W or -value";
+        }
+    } else if (field[0] == 'W' && 1 == strlen(field)) {
+        ret = 1;
+        for (i1 = 1; i1 <= 5; i1++) {
+            cron_set_bit(days_of_week, i1);
+        }
+        field[0] = '*';
+    } else if((pos = has_char(field, 'W'))) {
+        if (pos + 1 != strlen(field)) {
+            *error = "W has to be last";
+            return ret;
+        }
+        field[pos] = '\0';
+        *day_in_month = parse_uint(field, &err);
+        for (i1 = 1; i1 <= 5; i1++) {
+            cron_set_bit(days_of_week, i1);
+        }
+        cron_set_bit(flags, 2);
+        field[0] = '*';
+        field[1] = '\0';
+    } else {
+        *day_in_month = 0;
+    }
+    set_number_hits(field, days_of_month, 1, CRON_MAX_DAYS_OF_MONTH, error);
+    return ret;
 }
 
 void cron_parse_expr(const char* expression, cron_expr* target, const char** error) {
     const char* err_local;
     size_t len = 0;
     char** fields = NULL;
+    int ret;
+    int pos = 0;
     if (!error) {
         error = &err_local;
     }
@@ -865,25 +1104,57 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
         goto return_res;
     }
 
+    if ('@' == expression[0]) {
+        expression++;
+        if (!strcmp("annually", expression)) {
+            expression = "0 0 0 1 1 * *";
+        } else if (!strcmp("yearly", expression)) {
+            expression = "0 0 0 1 1 * *";
+        } else if (!strcmp("monthly", expression)) {
+            expression = "0 0 0 1 * * *";
+        } else if (!strcmp("weekly", expression)) {
+            expression = "0 0 0 * * 0 *";
+        } else if (!strcmp("daily", expression)) {
+            expression = "0 0 0 * * * *";
+        } else if (!strcmp("midnight", expression)) {
+            expression = "0 0 0 * * * *";
+        } else if (!strcmp("hourly", expression)) {
+            expression = "0 0 * * * * *";
+        } else if (!strcmp("reboot", expression)) {
+            /* TODO handle running now */
+        }
+    }
+
     fields = split_str(expression, ' ', &len);
-    if (len != 6) {
-        *error = "Invalid number of fields, expression must consist of 6 fields";
+    if (len < 5 || len > 7) {
+        *error = "Invalid number of fields, expression must consist of 5-7 fields";
         goto return_res;
     }
     memset(target, 0, sizeof(*target));
-    set_number_hits(fields[0], target->seconds, 0, 60, error);
+    if (len > 5) {
+        set_number_hits(fields[pos++], target->seconds, 0, 60, error);
+        if (*error) goto return_res;
+    } else {
+        set_number_hits("0", target->seconds, 0, 60, error);
+    }
+    set_number_hits(fields[pos++], target->minutes, 0, 60, error);
     if (*error) goto return_res;
-    set_number_hits(fields[1], target->minutes, 0, 60, error);
+    set_number_hits(fields[pos++], target->hours, 0, 24, error);
     if (*error) goto return_res;
-    set_number_hits(fields[2], target->hours, 0, 24, error);
+    ret = set_days_of_month(fields[pos++], target->days_of_month, target->days_of_week, target->day_in_month, target->flags, error);
     if (*error) goto return_res;
-    set_days_of_month(fields[3], target->days_of_month, error);
+    set_months(fields[pos++], target->months, error);
     if (*error) goto return_res;
-    set_months(fields[4], target->months, error);
+    if (0 == ret) {
+        set_days_of_week(fields[pos++], target->days_of_week, target->day_in_month, error);
+        if (*error) goto return_res;
+    }
+    if (len < 7) {
+        set_years("*", target->years, error);
+    } else {
+        set_years(fields[pos], target->years, error);
+    }
     if (*error) goto return_res;
-    set_days_of_week(fields[5], target->days_of_week, error);
-    if (*error) goto return_res;
-
     goto return_res;
 
     return_res:
@@ -951,71 +1222,6 @@ static int prev_set_bit(uint8_t* bits, int from_index, int to_index, int* notfou
         if (cron_get_bit(bits, i)) return i;
     }
     *notfound = 1;
-    return 0;
-}
-
-static int last_day_of_month(int month, int year) {
-    struct tm cal;
-    time_t t;
-    memset(&cal,0,sizeof(cal));
-    cal.tm_sec=0;
-    cal.tm_min=0;
-    cal.tm_hour=0;
-    cal.tm_mon = month+1;
-    cal.tm_mday = 0;
-    cal.tm_year=year;
-    t=mktime(&cal);
-    return gmtime(&t)->tm_mday;
-}
-
-/**
- * Reset the calendar setting all the fields provided to zero.
- */
-static int reset_max(struct tm* calendar, int field) {
-    time_t res = 0;
-    if (!calendar || -1 == field) return 1;
-    switch (field) {
-    case CRON_CF_SECOND:
-        calendar->tm_sec = 59;
-        break;
-    case CRON_CF_MINUTE:
-        calendar->tm_min = 59;
-        break;
-    case CRON_CF_HOUR_OF_DAY:
-        calendar->tm_hour = 23;
-        break;
-    case CRON_CF_DAY_OF_WEEK:
-        calendar->tm_wday = 6;
-        break;
-    case CRON_CF_DAY_OF_MONTH:
-        calendar->tm_mday = last_day_of_month(calendar->tm_mon, calendar->tm_year);
-        break;
-    case CRON_CF_MONTH:
-        calendar->tm_mon = 11;
-        break;
-    case CRON_CF_YEAR:
-        /* I don't think this is supposed to happen ... */
-        fprintf(stderr, "reset CRON_CF_YEAR\n");
-        break;
-    default:
-        return 1; /* unknown field */
-    }
-    res = cron_mktime(calendar);
-    return CRON_INVALID_INSTANT == res ? 1 : 0;
-}
-
-static int reset_all_max(struct tm* calendar, int* fields) {
-    int i;
-    int res = 0;
-    if (!calendar || !fields) {
-        return 1;
-    }
-    for (i = 0; i < CRON_CF_ARR_LEN; i++) {
-        if (-1 != fields[i]) {
-            res = reset_max(calendar, fields[i]);
-            if (0 != res) return res;
-        }
-    }
     return 0;
 }
 

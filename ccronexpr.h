@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * File:   ccronexpr.h
  * Author: alex
  *
  * Created on February 24, 2015, 9:35 AM
+ *
+ * Cron doesn't decide calendar, it follows it.
  */
 
 #ifndef CCRONEXPR_H
@@ -39,22 +41,54 @@ extern "C" {
 
 #define CRON_INVALID_INSTANT ((time_t) -1)
 
-
 /**
  * Parsed cron expression
+ */
+
+/* DoM      *       DoW
+ * L        *       *
+ * L-15     *       *
+ * LW       *       *
+ * 15W      *       *
+ * W        *       *
+ * *        *       L
+ * *        *       6L
+ * *        *       6#3
+ * *        *       6#-3
  */
 typedef struct {
     uint8_t seconds[8];
     uint8_t minutes[8];
     uint8_t hours[3];
     uint8_t days_of_week[1];
-    uint8_t days_of_month[4];
+    /* L - last day
+     * 6L - last weekday (friday) of month
+     * 6#3 - nth weekday (friday) of month
+     * 6#-3 - last nth weekday (friday) of month
+     * */
+    /* Extra empty byte for longer months. */
+    uint8_t days_of_month[5];
+    /* L - last day
+     * L-15 - last day
+     * LW - last week day
+     * LW-3 - last week day
+     * W - week day,
+     * W-3 - week day,
+     * 15W - nearest weekday to 15th
+     * */
+    int8_t  day_in_month[1];
+    uint8_t flags[1];
+    /* 0 last
+       1 last weekday
+       2 closest weekday
+    */
+    uint8_t years[29];
     uint8_t months[2];
 } cron_expr;
 
 /**
  * Parses specified cron expression.
- * 
+ *
  * @param expression cron expression as nul-terminated string,
  *        should be no longer that 256 bytes
  * @param pointer to cron expression structure, it's client code responsibility
@@ -67,10 +101,10 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
 
 /**
  * Uses the specified expression to calculate the next 'fire' date after
- * the specified date. All dates are processed as UTC (GMT) dates 
- * without timezones information. To use local dates (current system timezone) 
+ * the specified date. All dates are processed as UTC (GMT) dates
+ * without timezones information. To use local dates (current system timezone)
  * instead of GMT compile with '-DCRON_USE_LOCAL_TIME'
- * 
+ *
  * @param expr parsed cron expression to use in next date calculation
  * @param date start date to start calculation from
  * @return next 'fire' date in case of success, '((time_t) -1)' in case of error.
@@ -79,10 +113,10 @@ time_t cron_next(cron_expr* expr, time_t date);
 
 /**
  * Uses the specified expression to calculate the previous 'fire' date after
- * the specified date. All dates are processed as UTC (GMT) dates 
- * without timezones information. To use local dates (current system timezone) 
+ * the specified date. All dates are processed as UTC (GMT) dates
+ * without timezones information. To use local dates (current system timezone)
  * instead of GMT compile with '-DCRON_USE_LOCAL_TIME'
- * 
+ *
  * @param expr parsed cron expression to use in previous date calculation
  * @param date start date to start calculation from
  * @return previous 'fire' date in case of success, '((time_t) -1)' in case of error.
