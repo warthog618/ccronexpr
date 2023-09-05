@@ -30,7 +30,8 @@ Or invoked directly via commandline:
 $ supertinycron '*/5 * * * * * *' /bin/echo hello
 ```
 
-## Implementation
+Implementation
+--------------
 
 This reference is based on:
 - [1] [gorhill's cronexpr on GitHub](https://github.com/gorhill/cronexpr/blob/master/README.md)
@@ -176,10 +177,6 @@ Expression, input date, next date:
 
 See more examples in [tests](https://github.com/staticlibs/ccronexpr/blob/a1343bc5a546b13430bd4ac72f3b047ac08f8192/ccronexpr_test.c#L251).
 
-Quartz extension of day of week and day of month compatibility (2023)
----------------------------
-See [quartz](https://www.javadoc.io/doc/org.quartz-scheduler/quartz/latest/org/quartz/CronExpression.html).
-
 Timezones
 ---------
 
@@ -198,7 +195,11 @@ This project is released under the [Apache License 2.0](http://www.apache.org/li
 Changelog
 ---------
 
-**HEAD**
+**2023**
+* major extension of supported expressions
+* command line tool
+
+**2022**
 
 * added CMake build
 * added GitHub Workflow for continuous testing
