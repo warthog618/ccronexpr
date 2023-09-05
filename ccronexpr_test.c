@@ -485,7 +485,7 @@ void test_expr() {
 
 void test_parse() {
     check_same("* * * W * *", "* * * * * 1-5");
-    check_same("* * * * * L", "* * * * * 7");
+    check_same("* * * * * L", "* * * * * 0");
     check_same("* * * * * 6#-1", "* * * * * 6L");
     check_same("0 0 0 * * *", "0 0 * * *");
     check_same("0 0 0 * * *", "0 0 0 * * * *");

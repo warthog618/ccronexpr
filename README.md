@@ -62,7 +62,7 @@ The asterisk indicates that the cron expression matches all values of the field.
 Hyphens define ranges. For instance, `2000-2010` in the 'Year' field matches every year from 2000 to 2010, inclusive.
 
 #### Slash `/`
-Slashes specify increments within ranges. For example, `3-59/15` in the 'Minute' field matches the third minute of the hour and every 15 minutes thereafter. The form `*/...` is equivalent to "first-last/...", representing an increment over the full range of the field.
+Slashes specify increments within ranges. For example, `3-59/15` in the 'Minute' field matches the third minute of the hour and every 15 minutes thereafter. The form `*/...` is equivalent to `first-last/...`, representing an increment over the full range of the field.
 
 #### Comma `,`
 Commas separate items in a list. For instance, `MON,WED,FRI` in the 'Day of week' field matches Mondays, Wednesdays, and Fridays.
@@ -70,7 +70,7 @@ Commas separate items in a list. For instance, `MON,WED,FRI` in the 'Day of week
 #### `L`
 The character `L` stands for "last". In the 'Day of week' field, `5L` denotes the last Friday of a given month. In the 'Day of month' field, it represents the last day of the month.
 
-- Using `L` alone in the 'Day of week' field is equivalent to `7` or `SAT`. Hence, expressions `* * * * * L *` and `* * * * * 7 *` are the same.
+- Using `L` alone in the 'Day of week' field is equivalent to `0` or `SAT`. Hence, expressions `* * * * * L *` and `* * * * * 0 *` are the same.
   
 - When followed by another value in the 'Day of week' field, like `6L`, it signifies the last Friday of the month.
   
