@@ -108,6 +108,8 @@ Predefined cron expressions
     @secondly   Run once every second                                                   * * * * * * *
     @reboot     Not supported
 
+Note that `@minutely` and `@secondly` are not standard.
+
 Other details
 -------------
 * If only five fields are present, the Year and Second fields are omitted. The omitted Year and Second are `*` and `0` respectively.
