@@ -111,6 +111,16 @@ char* find_nth(const char* str, char ch, int n) {
     return NULL;
 }
 
+void parse_line(char *line, TinyCronJob *job) {
+    job->schedule = line;
+    job->cmd = find_nth(line, ' ', line[0] == '@' ? 1 : 7);
+    if (!job->cmd) {
+        messageInt(1, "incomplete cron expression");
+        usage();
+    }
+    *job->cmd = '\0';
+    ++job->cmd;
+}
 int main(int argc, char *argv[]) {
     signal(SIGCHLD, sigchld_handler);
     signal(SIGTERM, sig_handler);
@@ -129,7 +139,7 @@ int main(int argc, char *argv[]) {
         usage();
     }
 
-    if (argc <= 2) {
+    if (argc <= 1) {
         messageInt(1, "incorrect number of arguments");
         usage();
     }
@@ -162,14 +172,7 @@ int main(int argc, char *argv[]) {
         message(line, "line");
     }
 
-    job.schedule = line;
-    job.cmd = find_nth(line, ' ', line[0] == '@' ? 1 : 7);
-    if (!job.cmd) {
-        messageInt(1, "incomplete cron expression");
-        usage();
-    }
-    *job.cmd = '\0';
-    ++job.cmd;
+    parse_line(line, &job);
 
     while (1) {
         if (nap(&job)) {
