@@ -1004,7 +1004,7 @@ static void set_days_of_week(char* field, uint8_t* days_of_week, int8_t* day_in_
             return;
         }
         field[pos] = '\0';
-        *day_in_month = parse_int(field+pos+1, &err);
+        *day_in_month = (int8_t)parse_int(field+pos+1, &err);
         if (err) {
             *error = "Unsigned integer parse error 5";
             goto return_error;
@@ -1053,7 +1053,7 @@ static int set_days_of_month(char* field, uint8_t* days_of_month, uint8_t* days_
             cron_set_bit(flags, 0);
             field[0] = '*';
             if (field[1] == '-') {
-                *day_in_month += parse_int(field+1, &err);
+                *day_in_month += (int8_t)parse_int(field+1, &err);
                 if (err) {
                     *error = "Unsigned integer parse error 6";
                     goto return_error;
@@ -1082,7 +1082,7 @@ static int set_days_of_month(char* field, uint8_t* days_of_month, uint8_t* days_
             return ret;
         }
         field[pos] = '\0';
-        *day_in_month = parse_uint(field, &err);
+        *day_in_month = (int8_t)parse_uint(field, &err);
         if (err) {
             *error = "Unsigned integer parse error 7";
             goto return_error;
