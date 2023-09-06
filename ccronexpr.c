@@ -341,6 +341,7 @@ static int last_weekday_of_month(int month, int year) {
 static int closest_weekday(int day_of_month, int month, int year) {
     struct tm cal;
     time_t t;
+    int wday;
     memset(&cal, 0, sizeof(cal));
     cal.tm_sec = 0;
     cal.tm_min = 0;
@@ -350,7 +351,7 @@ static int closest_weekday(int day_of_month, int month, int year) {
     cal.tm_year = year; /* years since 1900 */
     t = cron_mktime(&cal);
 
-    int wday = cron_time(&t, &cal)->tm_wday;
+    wday = cron_time(&t, &cal)->tm_wday;
 
     /* If it's a Sunday */
     if (wday == 0) {
@@ -705,7 +706,7 @@ static int parse_uint(const char* str, int* errcode) {
     }
 }
 
-static unsigned int parse_int(const char* str, int* errcode) {
+static int parse_int(const char* str, int* errcode) {
     return *str == '-' ? -parse_uint(str+1, errcode) : parse_uint(str, errcode);
 }
 
