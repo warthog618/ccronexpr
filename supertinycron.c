@@ -3,7 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/types.h>
 #include <signal.h>
+#include <ctype.h>
 
 #include "ccronexpr.h"
 
@@ -12,6 +14,7 @@
 #endif
 
 typedef struct {
+    char* shell;
     char* cmd;
     char* schedule;
     int verbose;
@@ -33,10 +36,80 @@ void sig_handler(int signo) {
     }
 }
 
+int cron_system(const char *shell, const char *command) {
+    int stdout_pipe[2], stderr_pipe[2];
+    pid_t pid;
+
+    if (pipe(stdout_pipe) != 0 || pipe(stderr_pipe) != 0) {
+        perror("pipe");
+        return -1;
+    }
+
+    pid = fork();
+    if (pid == 0) {
+        close(stdout_pipe[0]);
+        close(stderr_pipe[0]);
+
+        if (dup2(stdout_pipe[1], STDOUT_FILENO) == -1) {
+            perror("dup2 stdout");
+            return -1;
+        }
+
+        if (dup2(stderr_pipe[1], STDERR_FILENO) == -1) {
+            perror("dup2 stderr");
+            return -1;
+        }
+
+        close(stdout_pipe[1]);
+        close(stderr_pipe[1]);
+
+        execl(shell, shell, "-c", command, NULL);
+        perror("execl");
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        perror("fork");
+        return -1;
+    } else {
+        char buffer[4096];
+        int nbytes;
+
+        close(stdout_pipe[1]);
+        close(stderr_pipe[1]);
+
+        while ((nbytes = read(stdout_pipe[0], buffer, sizeof(buffer))) > 0) {
+            write(STDOUT_FILENO, buffer, nbytes);
+        }
+
+        while ((nbytes = read(stderr_pipe[0], buffer, sizeof(buffer))) > 0) {
+            write(STDERR_FILENO, buffer, nbytes);
+        }
+
+        close(stdout_pipe[0]);
+        close(stderr_pipe[0]);
+
+        int status;
+        pid_t wpid = waitpid(pid, &status, 0);
+        if (wpid == -1) {
+            perror("waitpid");
+            return -1;
+        }
+        if (WIFEXITED(status)) {
+            return WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+            return -WTERMSIG(status);
+        }
+        return -1;
+    }
+}
+
 TinyCronJob optsFromEnv() {
     TinyCronJob opts = {0};
     if (getenv("TINYCRON_VERBOSE") != NULL) {
         opts.verbose = 1;
+    }
+    opts.shell = getenv("SHELL");
+    if (!opts.shell) {
+        opts.shell = "/bin/sh"; 
     }
     return opts;
 }
@@ -72,7 +145,7 @@ void run(TinyCronJob *job) {
         message(job->cmd, "running job:");
     }
 
-    messageInt(system(job->cmd), "job failed:");
+    messageInt(cron_system(job->shell, job->cmd), "job failed:");
 }
 
 int nap(TinyCronJob *job) {
@@ -111,18 +184,19 @@ char* find_nth(const char* str, char ch, int n) {
     return NULL;
 }
 
-void parse_line(char *line, TinyCronJob *job) {
+void parse_line(char *line, TinyCronJob *job, int count) {
     job->schedule = line;
-    job->cmd = find_nth(line, ' ', line[0] == '@' ? 1 : 7);
+    job->cmd = find_nth(line, ' ', line[0] == '@' ? 1 : count);
+
     if (!job->cmd) {
         messageInt(1, "incomplete cron expression");
-        usage();
+        exit(EXIT_FAILURE);
     }
     *job->cmd = '\0';
     ++job->cmd;
 }
 int main(int argc, char *argv[]) {
-    signal(SIGCHLD, sigchld_handler);
+    /*signal(SIGCHLD, sigchld_handler);*/
     signal(SIGTERM, sig_handler);
     signal(SIGINT,  sig_handler);
 
@@ -167,7 +241,7 @@ int main(int argc, char *argv[]) {
         message(line, "line");
     }
 
-    parse_line(line, &job);
+    parse_line(line, &job, 7);
 
     while (1) {
         if (nap(&job)) {
