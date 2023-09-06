@@ -809,6 +809,7 @@ static size_t has_char(const char* str, char ch) {
     size_t i = 0;
     if (!str) return 0;
     for (i = 0; str[i] != '\0'; i++) {
+        /* Match at first character is now treated as failure for convenience! */
         if (str[i] == ch) return i;
     }
     return 0;
@@ -991,14 +992,14 @@ static void set_days_of_week(char* field, uint8_t* days_of_week, int8_t* day_in_
     }
     if (field[0] == 'L' && 1 == strlen(field)) {
         field[0] = '0';
-    } else if((pos = has_char(field, 'L'))) {
+    } else if((pos = has_char(field, 'L')) != 0) {
         if (pos + 1 != strlen(field)) {
             *error = "L has to be last";
             return;
         }
         field[pos] = '\0';
         *day_in_month = -1;
-    } else if((pos = has_char(field, '#'))) {
+    } else if((pos = has_char(field, '#')) != 0) {
         if (pos + 1 == strlen(field)) {
             *error = "# can't be last";
             return;
@@ -1076,7 +1077,7 @@ static int set_days_of_month(char* field, uint8_t* days_of_month, uint8_t* days_
             cron_set_bit(days_of_week, i1);
         }
         field[0] = '*';
-    } else if((pos = has_char(field, 'W'))) {
+    } else if((pos = has_char(field, 'W')) != 0) {
         if (pos + 1 != strlen(field)) {
             *error = "W has to be last";
             return ret;
