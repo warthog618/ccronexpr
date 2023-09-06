@@ -1027,6 +1027,7 @@ static void set_days_of_week(char* field, uint8_t* days_of_week, int8_t* day_in_
         cron_del_bit(days_of_week, 7);
     }
     return_error:
+    return;
 }
 
 static int set_days_of_month(char* field, uint8_t* days_of_month, uint8_t* days_of_week, int8_t* day_in_month, uint8_t* flags, const char** error) {
@@ -1169,7 +1170,7 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
         if (*error) goto return_res;
     }
     if (len < 7) {
-        set_years("*", target->years, error);
+        set_years((char *)"*", target->years, error);
     } else {
         set_years(fields[pos], target->years, error);
     }

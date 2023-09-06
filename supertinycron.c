@@ -13,6 +13,25 @@
     #define VERSION "dev-build"
 #endif
 
+#ifdef CRON_TEST_MALLOC
+static int cronAllocations = 0;
+static int cronTotalAllocations = 0;
+static int maxAlloc = 0;
+void* cron_malloc(size_t n) {
+    cronAllocations++;
+    cronTotalAllocations++;
+    if (cronAllocations > maxAlloc) {
+        maxAlloc = cronAllocations;
+    }
+    return malloc(n);
+}
+
+void cron_free(void* p) {
+    cronAllocations--;
+    free(p);
+}
+#endif
+
 typedef struct {
     char* shell;
     char* cmd;
@@ -103,13 +122,13 @@ int cron_system(const char *shell, const char *command) {
 }
 
 TinyCronJob optsFromEnv() {
-    TinyCronJob opts = {0};
+    TinyCronJob opts;
     if (getenv("TINYCRON_VERBOSE") != NULL) {
         opts.verbose = 1;
     }
     opts.shell = getenv("SHELL");
     if (!opts.shell) {
-        opts.shell = "/bin/sh"; 
+        opts.shell = (char *)"/bin/sh"; 
     }
     return opts;
 }
@@ -224,7 +243,7 @@ int main(int argc, char *argv[]) {
     line_len += argc - 3;
     line_len += 1;
 
-    char *line = malloc(line_len);
+    char *line = (char *)malloc(line_len);
     if (!line) {
         perror("malloc");
         return EXIT_FAILURE;
