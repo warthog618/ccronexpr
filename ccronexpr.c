@@ -557,7 +557,12 @@ static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* da
     return 0;
 }
 
-static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
+static int do_nextprev(
+        int (*find)(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out),
+        int (*do_)(cron_expr* expr, struct tm* calendar, int dot),
+        int (*find_day)(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out),
+        int (*find_offset)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out),
+        cron_expr* expr, struct tm* calendar, int dot, int offset) {
     int i;
     int res = 0;
     int resets[CRON_CF_ARR_LEN];
@@ -582,60 +587,60 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
     }
 
     second = calendar->tm_sec;
-    update_second = find_next(expr->seconds, CRON_MAX_SECONDS, second, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
+    update_second = find(expr->seconds, CRON_MAX_SECONDS, second, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
     if (0 != res) goto return_result;
     if (second == update_second) {
         push_to_fields_arr(resets, CRON_CF_SECOND);
     }
 
     minute = calendar->tm_min;
-    update_minute = find_next(expr->minutes, CRON_MAX_MINUTES, minute, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets, &res);
+    update_minute = find(expr->minutes, CRON_MAX_MINUTES, minute, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets, &res);
     if (0 != res) goto return_result;
     if (minute == update_minute) {
         push_to_fields_arr(resets, CRON_CF_MINUTE);
     } else {
-        res = do_next(expr, calendar, dot);
+        res = do_(expr, calendar, dot);
         if (0 != res) goto return_result;
     }
 
     hour = calendar->tm_hour;
-    update_hour = find_next(expr->hours, CRON_MAX_HOURS, hour, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_WEEK, resets, &res);
+    update_hour = find(expr->hours, CRON_MAX_HOURS, hour, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_WEEK, resets, &res);
     if (0 != res) goto return_result;
     if (hour == update_hour) {
         push_to_fields_arr(resets, CRON_CF_HOUR_OF_DAY);
     } else {
-        res = do_next(expr, calendar, dot);
+        res = do_(expr, calendar, dot);
         if (0 != res) goto return_result;
     }
 
     day_of_week = calendar->tm_wday;
     day_of_month = calendar->tm_mday;
-    update_day_of_month = find_next_day(calendar, expr->days_of_month, expr->day_in_month, day_of_month, expr->days_of_week, day_of_week, expr->flags, resets, &res);
+    update_day_of_month = find_day(calendar, expr->days_of_month, expr->day_in_month, day_of_month, expr->days_of_week, day_of_week, expr->flags, resets, &res);
     if (0 != res) goto return_result;
     if (day_of_month == update_day_of_month) {
         push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
     } else {
-        res = do_next(expr, calendar, dot);
+        res = do_(expr, calendar, dot);
         if (0 != res) goto return_result;
     }
 
     month = calendar->tm_mon; /*day already adds one if no day in same month is found*/
-    update_month = find_next(expr->months, CRON_MAX_MONTHS, month, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets, &res);
+    update_month = find(expr->months, CRON_MAX_MONTHS, month, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets, &res);
     if (0 != res) goto return_result;
     if (month != update_month) {
-        if (calendar->tm_year - dot > 4) {
+        if ((calendar->tm_year - dot)*offset > CRON_MAX_YEARS_DIFF) {
             res = -1;
             goto return_result;
         }
-        res = do_next(expr, calendar, dot);
+        res = do_(expr, calendar, dot);
         if (0 != res) goto return_result;
     }
 
     year = calendar->tm_year;
-    update_year = find_next_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, year, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
+    update_year = find_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, year, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
     if (0 != res) goto return_result;
     if (year != update_year) {
-        res = do_next(expr, calendar, dot);
+        res = do_(expr, calendar, dot);
         if (0 != res) goto return_result;
     }
 
@@ -643,6 +648,10 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
 
     return_result:
     return res;
+}
+
+static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
+    return do_nextprev(find_next, do_next, find_next_day, find_next_offset, expr, calendar, dot, 1);
 }
 
 static int to_upper(char* str) {
@@ -1206,7 +1215,7 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
     free_splitted(fields, len);
 }
 
-time_t cron_next(cron_expr* expr, time_t date) {
+time_t cron_nextprev(int (*fn)(cron_expr* expr, struct tm* calendar, int dot), cron_expr* expr, time_t date, int offset) {
     /*
      The plan:
 
@@ -1227,10 +1236,9 @@ time_t cron_next(cron_expr* expr, time_t date) {
      */
     struct tm calval;
     struct tm* calendar;
-    time_t original;
     int res;
+    time_t original;
     time_t calculated;
-
     if (!expr) return CRON_INVALID_INSTANT;
     memset(&calval, 0, sizeof(struct tm));
     calendar = cron_time(&date, &calval);
@@ -1238,22 +1246,25 @@ time_t cron_next(cron_expr* expr, time_t date) {
     original = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == original) return CRON_INVALID_INSTANT;
 
-    res = do_next(expr, calendar, calendar->tm_year);
+    res = fn(expr, calendar, calendar->tm_year);
     if (0 != res) return CRON_INVALID_INSTANT;
 
     calculated = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == calculated) return CRON_INVALID_INSTANT;
     if (calculated == original) {
         /* We arrived at the original timestamp - round up to the next whole second and try again... */
-        res = add_to_field(calendar, CRON_CF_SECOND, 1);
+        res = add_to_field(calendar, CRON_CF_SECOND, offset);
         if (0 != res) return CRON_INVALID_INSTANT;
-        res = do_next(expr, calendar, calendar->tm_year);
+        res = fn(expr, calendar, calendar->tm_year);
         if (0 != res) return CRON_INVALID_INSTANT;
     }
 
     return cron_mktime(calendar);
 }
 
+time_t cron_next(cron_expr* expr, time_t date) {
+    return cron_nextprev(do_next, expr, date, 1);
+}
 
 /* https://github.com/staticlibs/ccronexpr/pull/8 */
 
@@ -1274,7 +1285,7 @@ static int prev_set_bit(uint8_t* bits, int from_index, int to_index, int* notfou
  * Search the bits provided for the next set bit after the value provided,
  * and reset the calendar.
  */
-static int find_prev(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
+static int find_prev_offset(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
     int notfound = 0;
     int err = 0;
     int next_value = prev_set_bit(bits, value, 0, &notfound);
@@ -1300,7 +1311,11 @@ static int find_prev(uint8_t* bits, int max, int value, struct tm* calendar, int
     return 0;
 }
 
-static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int day_of_month, uint8_t* days_of_week, int day_of_week, int* resets, int* res_out) {
+static int find_prev(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
+    return find_prev_offset(bits, max, value, 0, calendar, field, nextField, lower_orders, res_out);
+}
+
+static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out) {
     int err;
     unsigned int count = 0;
     unsigned int max = 366;
@@ -1320,127 +1335,9 @@ static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int day_of
 }
 
 static int do_prev(cron_expr* expr, struct tm* calendar, int dot) {
-    int i;
-    int res = 0;
-    int resets[CRON_CF_ARR_LEN];
-    int empty_list[CRON_CF_ARR_LEN];
-    int second = 0;
-    int update_second = 0;
-    int minute = 0;
-    int update_minute = 0;
-    int hour = 0;
-    int update_hour = 0;
-    int day_of_week = 0;
-    int day_of_month = 0;
-    int update_day_of_month = 0;
-    int month = 0;
-    int update_month = 0;
-
-    for (i = 0; i < CRON_CF_ARR_LEN; i++) {
-        resets[i] = -1;
-        empty_list[i] = -1;
-    }
-
-    second = calendar->tm_sec;
-    update_second = find_prev(expr->seconds, CRON_MAX_SECONDS, second, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
-    if (0 != res) goto return_result;
-    if (second == update_second) {
-        push_to_fields_arr(resets, CRON_CF_SECOND);
-    }
-
-    minute = calendar->tm_min;
-    update_minute = find_prev(expr->minutes, CRON_MAX_MINUTES, minute, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets, &res);
-    if (0 != res) goto return_result;
-    if (minute == update_minute) {
-        push_to_fields_arr(resets, CRON_CF_MINUTE);
-    } else {
-        res = do_prev(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
-
-    hour = calendar->tm_hour;
-    update_hour = find_prev(expr->hours, CRON_MAX_HOURS, hour, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_WEEK, resets, &res);
-    if (0 != res) goto return_result;
-    if (hour == update_hour) {
-        push_to_fields_arr(resets, CRON_CF_HOUR_OF_DAY);
-    } else {
-        res = do_prev(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
-
-    day_of_week = calendar->tm_wday;
-    day_of_month = calendar->tm_mday;
-    update_day_of_month = find_prev_day(calendar, expr->days_of_month, day_of_month, expr->days_of_week, day_of_week, resets, &res);
-    if (0 != res) goto return_result;
-    if (day_of_month == update_day_of_month) {
-        push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
-    } else {
-        res = do_prev(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
-
-    month = calendar->tm_mon; /*day already adds one if no day in same month is found*/
-    update_month = find_prev(expr->months, CRON_MAX_MONTHS, month, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets, &res);
-    if (0 != res) goto return_result;
-    if (month != update_month) {
-        if (dot - calendar->tm_year > CRON_MAX_YEARS_DIFF) {
-            res = -1;
-            goto return_result;
-        }
-        res = do_prev(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
-    goto return_result;
-
-    return_result:
-    return res;
+    return do_nextprev(find_prev, do_prev, find_prev_day, find_prev_offset, expr, calendar, dot, -1);
 }
 
 time_t cron_prev(cron_expr* expr, time_t date) {
-    /*
-     The plan:
-
-     1 Round down to a whole second
-
-     2 If seconds match move on, otherwise find the next match:
-     2.1 If next match is in the next minute then roll forwards
-
-     3 If minute matches move on, otherwise find the next match
-     3.1 If next match is in the next hour then roll forwards
-     3.2 Reset the seconds and go to 2
-
-     4 If hour matches move on, otherwise find the next match
-     4.1 If next match is in the next day then roll forwards,
-     4.2 Reset the minutes and seconds and go to 2
-
-     ...
-     */
-    struct tm calval;
-    struct tm* calendar;
-    int res;
-    time_t original;
-    time_t calculated;
-    if (!expr) return CRON_INVALID_INSTANT;
-    memset(&calval, 0, sizeof(struct tm));
-    calendar = cron_time(&date, &calval);
-    if (!calendar) return CRON_INVALID_INSTANT;
-    original = cron_mktime(calendar);
-    if (CRON_INVALID_INSTANT == original) return CRON_INVALID_INSTANT;
-
-    /* calculate the previous occurrence */
-    res = do_prev(expr, calendar, calendar->tm_year);
-    if (0 != res) return CRON_INVALID_INSTANT;
-
-    /* check for a match, try from the next second if one wasn't found */
-    calculated = cron_mktime(calendar);
-    if (CRON_INVALID_INSTANT == calculated) return CRON_INVALID_INSTANT;
-    if (calculated == original) {
-        /* We arrived at the original timestamp - round up to the next whole second and try again... */
-        res = add_to_field(calendar, CRON_CF_SECOND, -1);
-        if (0 != res) return CRON_INVALID_INSTANT;
-        res = do_prev(expr, calendar, calendar->tm_year);
-        if (0 != res) return CRON_INVALID_INSTANT;
-    }
-
-    return cron_mktime(calendar);
+    return cron_nextprev(do_prev, expr, date, -1);
 }
