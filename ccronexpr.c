@@ -1289,6 +1289,9 @@ static int find_prev_offset(uint8_t* bits, int max, int value, int offset, struc
     int notfound = 0;
     int err = 0;
     int next_value = prev_set_bit(bits, value, 0, &notfound);
+#ifdef UNREFERENCED_PARAMETER
+    UNREFERENCED_PARAMETER(offset);
+#endif
     /* roll under if needed */
     if (notfound) {
         err = add_to_field(calendar, nextField, -1);
@@ -1319,6 +1322,11 @@ static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* da
     int err;
     unsigned int count = 0;
     unsigned int max = 366;
+#ifdef UNREFERENCED_PARAMETER
+    UNREFERENCED_PARAMETER(flags);
+    UNREFERENCED_PARAMETER(day_in_month);
+#endif
+
     while ((!cron_get_bit(days_of_month, day_of_month) || !cron_get_bit(days_of_week, day_of_week)) && count++ < max) {
         err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, -1);
 
