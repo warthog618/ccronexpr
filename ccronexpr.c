@@ -37,10 +37,13 @@
 #define CRON_MAX_DAYS_OF_MONTH 32
 #define CRON_MAX_DAYS_OF_WEEK 7
 #define CRON_MAX_MONTHS 12
-#define YEAR_OFFSET 1900
 #define CRON_MIN_YEARS 1970
 #define CRON_MAX_YEARS 2200
 #define CRON_MAX_YEARS_DIFF 4
+
+#define YEAR_OFFSET 1900
+#define DAY_SECONDS 24 * 60 * 60
+#define WEEK_DAYS 7
 
 #define CRON_CF_SECOND 0
 #define CRON_CF_MINUTE 1
@@ -316,8 +319,6 @@ static int last_day_of_month(int month, int year) {
     return cron_time(&t, &cal)->tm_mday;
 }
 
-#define DAY_SECONDS 24 * 60 * 60
-
 static int last_weekday_of_month(int month, int year) {
     struct tm cal;
     time_t t;
@@ -503,7 +504,7 @@ static int find_next_day_condition(struct tm* calendar, uint8_t* days_of_month, 
             else if (cron_get_bit(flags, 1)) day = last_weekday_of_month(calendar->tm_mon, calendar->tm_year);
             else if (cron_get_bit(flags, 2)) day = closest_weekday(*day_in_month-1, calendar->tm_mon, calendar->tm_year);
         } else {
-            if (*day_in_month < 0)           day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+            if      (*day_in_month < 0)      day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
         }
         *changed = 0;
     }
@@ -515,8 +516,12 @@ static int find_next_day_condition(struct tm* calendar, uint8_t* days_of_month, 
         if ((cron_get_bit(flags, 1) && day != day_of_month-1-*day_in_month)) return 1;
         if ((cron_get_bit(flags, 2) && day != day_of_month)) return 1;
     } else {
-        if (*day_in_month < 0 && (day_of_month < day+7**day_in_month+1 || day_of_month >= day+7*(*day_in_month+1)+1)) return 1;
-        if (*day_in_month > 0 && (day_of_month < 7*(*day_in_month-1)+1 || day_of_month >= 7**day_in_month+1)) return 1;
+        if (*day_in_month < 0 && 
+                (day_of_month <  day+WEEK_DAYS**day_in_month+1 || 
+                 day_of_month >= day+WEEK_DAYS*(*day_in_month+1)+1)) return 1;
+        if (*day_in_month > 0 && 
+                (day_of_month <  WEEK_DAYS*(*day_in_month-1)+1 || 
+                 day_of_month >= WEEK_DAYS**day_in_month+1)) return 1;
     }
     return 0;
 }
