@@ -78,9 +78,9 @@ typedef struct {
      * */
     int8_t  day_in_month[1];
     uint8_t flags[1];
-    /* 0 last
-       1 last weekday
-       2 closest weekday
+    /* 0 last day of the month
+       1 last weekday of the month
+       2 closest weekday to day in month
     */
     uint8_t years[29];
     uint8_t months[2];

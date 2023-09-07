@@ -541,6 +541,7 @@ static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* da
         day_of_week = calendar->tm_wday;
         if (year != calendar->tm_year) {
             year = calendar->tm_year;
+            /* This should not be needed unless there is as single day month in libc. */
             changed = 1;
         }
         if (month != calendar->tm_mon) {
