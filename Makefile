@@ -6,6 +6,7 @@ ifeq ($(strip $(UNCOMMITTED_CHANGES)),)
 else
     VERSION := $(VERSION)-dev-build
 endif
+CFLAGS = -Wextra -std=c89 -Os -ffunction-sections -fdata-sections -Wl,--gc-sections -Wl,-z,norelro -Wno-unused-parameter -static -DVERSION=\"$(VERSION)\" -DCRON_USE_LOCAL_TIME
 CFLAGS = -Wextra -std=c89 -s -Os -ffunction-sections -fdata-sections -Wl,--gc-sections -Wl,-z,norelro -static -DVERSION=\"$(VERSION)\" -DCRON_USE_LOCAL_TIME
 SOURCES = supertinycron.c ccronexpr.c ccronexpr_test.c
 OBJECTS = supertinycron.o ccronexpr.o

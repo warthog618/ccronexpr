@@ -29,7 +29,7 @@ if (MSVC)
     target_compile_definitions(ccronexpr PRIVATE _CRT_SECURE_NO_WARNINGS)
 else ()
     # Strict compilation
-    target_compile_options(ccronexpr PRIVATE -ansi -Wall -Wextra -Werror -Wshadow -Wpointer-arith -Wcast-qual -Wconversion -pedantic-errors)
+    target_compile_options(ccronexpr PRIVATE -ansi -Wall -Wextra -Werror -Wshadow -Wpointer-arith -Wcast-qual -Wconversion -Wno-unused-parameter -pedantic-errors)
 endif ()
 
 # Tests

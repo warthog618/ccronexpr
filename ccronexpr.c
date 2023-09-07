@@ -562,7 +562,7 @@ static int do_nextprev(
         int (*do_)(cron_expr* expr, struct tm* calendar, int dot),
         int (*find_day)(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out),
         int (*find_offset)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out),
-        cron_expr* expr, struct tm* calendar, int dot, int offset) {
+        cron_expr* expr, struct tm* calendar, int dot) {
     int i;
     int res = 0;
     int resets[CRON_CF_ARR_LEN];
@@ -628,7 +628,7 @@ static int do_nextprev(
     update_month = find(expr->months, CRON_MAX_MONTHS, month, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets, &res);
     if (0 != res) goto return_result;
     if (month != update_month) {
-        if ((calendar->tm_year - dot)*offset > CRON_MAX_YEARS_DIFF) {
+        if (abs(calendar->tm_year - dot) > CRON_MAX_YEARS_DIFF) {
             res = -1;
             goto return_result;
         }
@@ -651,7 +651,7 @@ static int do_nextprev(
 }
 
 static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
-    return do_nextprev(find_next, do_next, find_next_day, find_next_offset, expr, calendar, dot, 1);
+    return do_nextprev(find_next, do_next, find_next_day, find_next_offset, expr, calendar, dot);
 }
 
 static int to_upper(char* str) {
@@ -1299,9 +1299,9 @@ static int find_prev_offset(uint8_t* bits, int max, int value, int offset, struc
         next_value = prev_set_bit(bits, max - 1, value, &notfound);
     }
     if (notfound || next_value != value) {
-        err = set_field(calendar, field, next_value);
-        if (err) goto return_error;
         err = reset_all_max(calendar, lower_orders);
+        if (err) goto return_error;
+        err = set_field(calendar, field, next_value);
         if (err) goto return_error;
     }
     return next_value;
@@ -1335,7 +1335,7 @@ static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* da
 }
 
 static int do_prev(cron_expr* expr, struct tm* calendar, int dot) {
-    return do_nextprev(find_prev, do_prev, find_prev_day, find_prev_offset, expr, calendar, dot, -1);
+    return do_nextprev(find_prev, do_prev, find_prev_day, find_prev_offset, expr, calendar, dot);
 }
 
 time_t cron_prev(cron_expr* expr, time_t date) {
