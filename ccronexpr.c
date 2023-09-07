@@ -1155,17 +1155,13 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
 
     if ('@' == expression[0]) {
         expression++;
-        if (!strcmp("annually", expression)) {
-            expression = "0 0 0 1 1 * *";
-        } else if (!strcmp("yearly", expression)) {
+        if (!strcmp("annually", expression) || !strcmp("yearly", expression)) {
             expression = "0 0 0 1 1 * *";
         } else if (!strcmp("monthly", expression)) {
             expression = "0 0 0 1 * * *";
         } else if (!strcmp("weekly", expression)) {
             expression = "0 0 0 * * 0 *";
-        } else if (!strcmp("daily", expression)) {
-            expression = "0 0 0 * * * *";
-        } else if (!strcmp("midnight", expression)) {
+        } else if (!strcmp("daily", expression) || !strcmp("midnight", expression)) {
             expression = "0 0 0 * * * *";
         } else if (!strcmp("hourly", expression)) {
             expression = "0 0 * * * * *";
