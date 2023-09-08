@@ -228,8 +228,15 @@ void check_expr_invalid(const char* expr) {
 }
 
 void test_expr() {
+    char* tz = getenv("TZ");
+    /*Test leap seconds - nejsou nastavené hodnoty, co se kontrolují */ 
     /*Test leap seconds
     check_fn(cron_next, "60 0 0 * * *", "2015-01-01_15:12:42", "2015-06-30_00:00:00", __LINE__);*/
+    if (tz && !strcmp("right/UTC", tz)) {
+        check_fn(cron_next, "L59 * * * * *", "2016-12-31_23:50:00", "2016-12-31_23:50:59", __LINE__);
+        check_fn(cron_next, "L60 * * * * *", "2016-12-31_23:50:00", "2016-12-31_23:59:60", __LINE__);
+        check_fn(cron_next, "L60 * * * * *", "2016-12-31_23:59:59", "2016-12-31_23:59:60", __LINE__);
+    }
 
     check_fn(cron_next, "* * * 1 1 * *", "1970-01-01_15:12:42", "1970-01-01_15:12:43", __LINE__);
     check_fn(cron_next, "* * * 1 1 * 1970,2100,2193,2199", "1970-01-01_15:12:42", "1970-01-01_15:12:43", __LINE__);

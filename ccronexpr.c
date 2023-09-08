@@ -32,6 +32,7 @@
 #include "ccronexpr.h"
 
 #define CRON_MAX_SECONDS 60
+#define CRON_MAX_LEAP_SECONDS 2
 #define CRON_MAX_MINUTES 60
 #define CRON_MAX_HOURS 24
 #define CRON_MAX_DAYS_OF_MONTH 32
@@ -595,10 +596,13 @@ static int do_nextprev(
     }
 
     second = calendar->tm_sec;
-    update_second = find(expr->seconds, CRON_MAX_SECONDS, second, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
+    update_second = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, second, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
     if (0 != res) goto return_result;
     if (second == update_second) {
         push_to_fields_arr(resets, CRON_CF_SECOND);
+    } else {
+        res = do_(expr, calendar, dot);
+        if (0 != res) goto return_result;
     }
 
     minute = calendar->tm_min;
@@ -1146,6 +1150,7 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
     const char* err_local;
     size_t len = 0;
     char** fields = NULL;
+    char* field;
     int ret;
     int pos = 0;
     if (!error) {
@@ -1190,14 +1195,19 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
     }
     memset(target, 0, sizeof(*target));
     if (len > 5) {
-        set_number_hits(fields[pos++], target->seconds, 0, 60, error);
+        if (fields[pos][0] == 'L') {
+            field = fields[pos++];
+            set_number_hits(field+1, target->seconds, 0, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, error);
+        } else {
+            set_number_hits(fields[pos++], target->seconds, 0, CRON_MAX_SECONDS, error);
+        }
         if (*error) goto return_res;
     } else {
-        set_number_hits("0", target->seconds, 0, 60, error);
+        set_number_hits("0", target->seconds, 0, CRON_MAX_SECONDS, error);
     }
-    set_number_hits(fields[pos++], target->minutes, 0, 60, error);
+    set_number_hits(fields[pos++], target->minutes, 0, CRON_MAX_MINUTES, error);
     if (*error) goto return_res;
-    set_number_hits(fields[pos++], target->hours, 0, 24, error);
+    set_number_hits(fields[pos++], target->hours, 0, CRON_MAX_HOURS, error);
     if (*error) goto return_res;
     ret = set_days_of_month(fields[pos++], target->days_of_month, target->days_of_week, target->day_in_month, target->flags, error);
     if (*error) goto return_res;

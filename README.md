@@ -43,7 +43,7 @@ This reference is based on:
 ```
 Field name     Mandatory?   Allowed values          Allowed special characters
 ----------     ----------   --------------          -------------------------
-Second         No           0-59                    * / , -
+Second         No           0-59                    * / , - L
 Minute         Yes          0-59                    * / , -
 Hour           Yes          0-23                    * / , -
 Day of month   Yes          1-31                    * / , - L W
@@ -76,6 +76,8 @@ The character `L` stands for "last". In the 'Day of week' field, `5L` denotes th
 - When followed by another value in the 'Day of week' field, like `6L`, it signifies the last Friday of the month.
   
 - If followed by a negative number in the 'Day of month' field, such as `L-3`, it indicates the third-to-last day of the month.
+
+- If `L` is present in the beginning of 'Second' field, it turns on non standard leap second functionality. Unless timezone specifies leap seconds, it will segfault, because it will not be able to find any leap second!
 
 When using 'L', avoid specifying lists or ranges to prevent ambiguous results.
 
