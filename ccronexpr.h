@@ -67,7 +67,7 @@ typedef struct {
      * 6#-3 - last nth weekday (friday) of month
      * */
     /* Extra empty byte for longer months. */
-    uint8_t days_of_month[5];
+    uint8_t days_of_month[4];
     /* L - last day
      * L-15 - last day
      * LW - last week day
