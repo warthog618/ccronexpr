@@ -600,7 +600,7 @@ static int do_nextprev(
     if (0 != res) goto return_result;
     if (second == update_second) {
         push_to_fields_arr(resets, CRON_CF_SECOND);
-    } else {
+    } else if (update_second >= CRON_MAX_SECONDS) {
         res = do_(expr, calendar, dot);
         if (0 != res) goto return_result;
     }
