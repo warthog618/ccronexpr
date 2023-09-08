@@ -29,7 +29,7 @@
 
 #include "ccronexpr.h"
 
-#define MAX_SECONDS 60
+#define MAX_SECONDS 62
 #define CRON_MAX_MINUTES 60
 #define CRON_MAX_HOURS 24
 #define CRON_MAX_DAYS_OF_WEEK 8
@@ -516,6 +516,7 @@ void test_parse() {
     check_same("* * * 2 * *", "* * * 2 * ?");
     check_same("* * * 2 * *", "* * * 2 * ?");
     check_same("57,59 * * * * *", "57/2 * * * * *");
+    check_same("L57,59,61 * * * * *", "L57/2 * * * * *");
     check_same("1,3,5 * * * * *", "1-6/2 * * * * *");
     check_same("* * 4,8,12,16,20 * * *", "* * 4/4 * * *");
     check_same("* * * * * 0-6", "* * * * * TUE,WED,THU,FRI,SAT,SUN,MON");
