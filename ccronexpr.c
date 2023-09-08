@@ -496,7 +496,7 @@ static int find_next(uint8_t* bits, int max, int value, struct tm* calendar, int
     return find_next_offset(bits, max, value, 0, calendar, field, nextField, lower_orders, res_out);
 }
 
-static int find_next_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* changed) {
+static int find_nextprev_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* changed) {
     static int day;
     if (*changed) {
         if (*flags) {
@@ -526,15 +526,15 @@ static int find_next_day_condition(struct tm* calendar, uint8_t* days_of_month, 
     return 0;
 }
 
-static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out) {
+static int find_nextprev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out, int offset) {
     int err;
     unsigned int count = 0;
     unsigned int max = 366;
     int changed = 1;
     int year = calendar->tm_year;
     int month = calendar->tm_mon;
-    while (find_next_day_condition(calendar, days_of_month, day_in_month, day_of_month, days_of_week, day_of_week, flags, &changed) && count++ < max) {
-        err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, 1);
+    while (find_nextprev_day_condition(calendar, days_of_month, day_in_month, day_of_month, days_of_week, day_of_week, flags, &changed) && count++ < max) {
+        err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, offset);
 
         if (err) goto return_error;
         day_of_month = calendar->tm_mday;
@@ -548,13 +548,21 @@ static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* da
             month = calendar->tm_mon;
             changed = 1;
         }
-        reset_all_min(calendar, resets);
+        if (offset > 0) {
+            reset_all_min(calendar, resets);
+        } else {
+            reset_all_max(calendar, resets);
+        }
     }
     return day_of_month;
 
     return_error:
     *res_out = 1;
     return 0;
+}
+
+static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out) {
+    return find_nextprev_day(calendar, days_of_month, day_in_month, day_of_month, days_of_week, day_of_week, flags, resets, res_out, 1);
 }
 
 static int do_nextprev(
@@ -1313,25 +1321,7 @@ static int find_prev(uint8_t* bits, int max, int value, struct tm* calendar, int
 }
 
 static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out) {
-    int err;
-    unsigned int count = 0;
-    unsigned int max = 366;
-    flags = flags;
-    day_in_month = day_in_month;
-
-    while ((!cron_get_bit(days_of_month, day_of_month) || !cron_get_bit(days_of_week, day_of_week)) && count++ < max) {
-        err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, -1);
-
-        if (err) goto return_error;
-        day_of_month = calendar->tm_mday;
-        day_of_week = calendar->tm_wday;
-        reset_all_max(calendar, resets);
-    }
-    return day_of_month;
-
-    return_error:
-    *res_out = 1;
-    return 0;
+    return find_nextprev_day(calendar, days_of_month, day_in_month, day_of_month, days_of_week, day_of_week, flags, resets, res_out, -1);
 }
 
 static int do_prev(cron_expr* expr, struct tm* calendar, int dot) {
