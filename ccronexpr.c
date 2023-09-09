@@ -310,11 +310,7 @@ static int last_day_of_month(int month, int year) {
     struct tm cal;
     time_t t;
     memset(&cal, 0, sizeof(cal));
-    cal.tm_sec = 0;
-    cal.tm_min = 0;
-    cal.tm_hour = 0;
     cal.tm_mon = month + 1;
-    cal.tm_mday = 0;
     cal.tm_year = year;
     t = cron_mktime(&cal);
     return cron_time(&t, &cal)->tm_mday;
@@ -324,11 +320,7 @@ static int last_weekday_of_month(int month, int year) {
     struct tm cal;
     time_t t;
     memset(&cal, 0, sizeof(cal));
-    cal.tm_sec = 0;
-    cal.tm_min = 0;
-    cal.tm_hour = 0;
     cal.tm_mon = month + 1; /* next month */
-    cal.tm_mday = 0; /* last day of previous month (which is what we're trying to find) */
     cal.tm_year = year; /* years since 1900 */
     t = cron_mktime(&cal);
 
@@ -345,9 +337,6 @@ static int closest_weekday(int day_of_month, int month, int year) {
     time_t t;
     int wday;
     memset(&cal, 0, sizeof(cal));
-    cal.tm_sec = 0;
-    cal.tm_min = 0;
-    cal.tm_hour = 0;
     cal.tm_mon = month; /* given month */
     cal.tm_mday = day_of_month + 1;
     cal.tm_year = year; /* years since 1900 */
