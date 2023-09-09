@@ -77,7 +77,7 @@ The character `L` stands for "last". In the 'Day of week' field, `5L` denotes th
   
 - If followed by a negative number in the 'Day of month' field, such as `L-3`, it indicates the third-to-last day of the month.
 
-- If `L` is present in the beginning of 'Second' field, it turns on non standard leap second functionality. Unless timezone specifies leap seconds, it will segfault, because it will not be able to find any leap second!
+- If `L` is present in the beginning of 'Second' field, it turns on non standard leap second functionality. Unless timezone specifies leap seconds, it will cycle indefinitely, because it will not be able to find any leap second!
 
 When using 'L', avoid specifying lists or ranges to prevent ambiguous results.
 

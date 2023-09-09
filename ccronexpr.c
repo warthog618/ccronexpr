@@ -575,68 +575,56 @@ static int do_nextprev(
     int res = 0;
     int resets[CRON_CF_ARR_LEN];
     int empty_list[CRON_CF_ARR_LEN];
-    int second = 0;
-    int update_second = 0;
-    int minute = 0;
-    int update_minute = 0;
-    int hour = 0;
-    int update_hour = 0;
-    int day_of_week = 0;
-    int day_of_month = 0;
-    int update_day_of_month = 0;
-    int month = 0;
-    int update_month = 0;
-    int year = 0;
-    int update_year = 0;
+    int value = 0;
+    int update_value = 0;
 
-    reset:
-    for (i = 0; i < CRON_CF_ARR_LEN; i++) {
-        resets[i] = -1;
-        empty_list[i] = -1;
-    }
-
-    second = calendar->tm_sec;
-    update_second = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, second, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
-    if (0 != res) goto return_result;
-    if (second == update_second) push_to_fields_arr(resets, CRON_CF_SECOND);
-    else if (update_second >= CRON_MAX_SECONDS) goto reset;
-
-    minute = calendar->tm_min;
-    update_minute = find(expr->minutes, CRON_MAX_MINUTES, minute, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets, &res);
-    if (0 != res) goto return_result;
-    if (minute == update_minute) push_to_fields_arr(resets, CRON_CF_MINUTE);
-    else goto reset;
-
-    hour = calendar->tm_hour;
-    update_hour = find(expr->hours, CRON_MAX_HOURS, hour, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_WEEK, resets, &res);
-    if (0 != res) goto return_result;
-    if (hour == update_hour) push_to_fields_arr(resets, CRON_CF_HOUR_OF_DAY);
-    else goto reset;
-
-    day_of_week = calendar->tm_wday;
-    day_of_month = calendar->tm_mday;
-    update_day_of_month = find_day(calendar, expr->days_of_month, expr->day_in_month, day_of_month, expr->days_of_week, day_of_week, expr->flags, resets, &res);
-    if (0 != res) goto return_result;
-    if (day_of_month == update_day_of_month) push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
-    else goto reset;
-
-    month = calendar->tm_mon; /*day already adds one if no day in same month is found*/
-    update_month = find(expr->months, CRON_MAX_MONTHS, month, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets, &res);
-    if (0 != res) goto return_result;
-    if (month != update_month) {
-        if (abs(calendar->tm_year - dot) > CRON_MAX_YEARS_DIFF) {
-            res = -1;
-            goto return_result;
+    do {
+        reset:
+        for (i = 0; i < CRON_CF_ARR_LEN; i++) {
+            resets[i] = -1;
+            empty_list[i] = -1;
         }
-        goto reset;
-    }
 
-    year = calendar->tm_year;
-    update_year = find_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, year, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
-    if (0 != res) goto return_result;
-    if (year != update_year) goto reset;
+        value = calendar->tm_sec;
+        update_value = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, value, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
+        if (0 != res) break;
+        if (value == update_value) push_to_fields_arr(resets, CRON_CF_SECOND);
+        else if (update_value >= CRON_MAX_SECONDS) goto reset;
 
-    return_result:
+        value = calendar->tm_min;
+        update_value = find(expr->minutes, CRON_MAX_MINUTES, value, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets, &res);
+        if (0 != res) break; 
+        if (value == update_value) push_to_fields_arr(resets, CRON_CF_MINUTE);
+        else goto reset;
+
+        value = calendar->tm_hour;
+        update_value = find(expr->hours, CRON_MAX_HOURS, value, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_WEEK, resets, &res);
+        if (0 != res) break; 
+        if (value == update_value) push_to_fields_arr(resets, CRON_CF_HOUR_OF_DAY);
+        else goto reset;
+
+        value = calendar->tm_mday;
+        update_value = find_day(calendar, expr->days_of_month, expr->day_in_month, value, expr->days_of_week, calendar->tm_wday, expr->flags, resets, &res);
+        if (0 != res) break; 
+        if (value == update_value) push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
+        else goto reset;
+
+        value = calendar->tm_mon; /*day already adds one if no day in same value is found*/
+        update_value = find(expr->months, CRON_MAX_MONTHS, value, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets, &res);
+        if (0 != res) break; 
+        if (value != update_value) {
+            if (abs(calendar->tm_year - dot) > CRON_MAX_YEARS_DIFF) {
+                res = -1;
+                break;
+            }
+            goto reset;
+        }
+
+        value = calendar->tm_year;
+        update_value = find_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
+        if (0 != res) break;
+    } while (value != update_value);
+
     return res;
 }
 
