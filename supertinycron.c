@@ -122,7 +122,7 @@ int cron_system(const char *shell, const char *command) {
 }
 
 TinyCronJob optsFromEnv() {
-    TinyCronJob opts;
+    TinyCronJob opts = {0, 0, 0, 0};
     if (getenv("TINYCRON_VERBOSE") != NULL) {
         opts.verbose = 1;
     }
