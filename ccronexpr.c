@@ -568,7 +568,6 @@ static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* da
 
 static int do_nextprev(
         int (*find)(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out),
-        int (*do_)(cron_expr* expr, struct tm* calendar, int dot),
         int (*find_day)(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out),
         int (*find_offset)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out),
         cron_expr* expr, struct tm* calendar, int dot) {
@@ -590,6 +589,7 @@ static int do_nextprev(
     int year = 0;
     int update_year = 0;
 
+    reset:
     for (i = 0; i < CRON_CF_ARR_LEN; i++) {
         resets[i] = -1;
         empty_list[i] = -1;
@@ -598,43 +598,27 @@ static int do_nextprev(
     second = calendar->tm_sec;
     update_second = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, second, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
     if (0 != res) goto return_result;
-    if (second == update_second) {
-        push_to_fields_arr(resets, CRON_CF_SECOND);
-    } else if (update_second >= CRON_MAX_SECONDS) {
-        res = do_(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
+    if (second == update_second) push_to_fields_arr(resets, CRON_CF_SECOND);
+    else if (update_second >= CRON_MAX_SECONDS) goto reset;
 
     minute = calendar->tm_min;
     update_minute = find(expr->minutes, CRON_MAX_MINUTES, minute, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets, &res);
     if (0 != res) goto return_result;
-    if (minute == update_minute) {
-        push_to_fields_arr(resets, CRON_CF_MINUTE);
-    } else {
-        res = do_(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
+    if (minute == update_minute) push_to_fields_arr(resets, CRON_CF_MINUTE);
+    else goto reset;
 
     hour = calendar->tm_hour;
     update_hour = find(expr->hours, CRON_MAX_HOURS, hour, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_WEEK, resets, &res);
     if (0 != res) goto return_result;
-    if (hour == update_hour) {
-        push_to_fields_arr(resets, CRON_CF_HOUR_OF_DAY);
-    } else {
-        res = do_(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
+    if (hour == update_hour) push_to_fields_arr(resets, CRON_CF_HOUR_OF_DAY);
+    else goto reset;
 
     day_of_week = calendar->tm_wday;
     day_of_month = calendar->tm_mday;
     update_day_of_month = find_day(calendar, expr->days_of_month, expr->day_in_month, day_of_month, expr->days_of_week, day_of_week, expr->flags, resets, &res);
     if (0 != res) goto return_result;
-    if (day_of_month == update_day_of_month) {
-        push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
-    } else {
-        res = do_(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
+    if (day_of_month == update_day_of_month) push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
+    else goto reset;
 
     month = calendar->tm_mon; /*day already adds one if no day in same month is found*/
     update_month = find(expr->months, CRON_MAX_MONTHS, month, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets, &res);
@@ -644,26 +628,20 @@ static int do_nextprev(
             res = -1;
             goto return_result;
         }
-        res = do_(expr, calendar, dot);
-        if (0 != res) goto return_result;
+        goto reset;
     }
 
     year = calendar->tm_year;
     update_year = find_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, year, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
     if (0 != res) goto return_result;
-    if (year != update_year) {
-        res = do_(expr, calendar, dot);
-        if (0 != res) goto return_result;
-    }
-
-    goto return_result;
+    if (year != update_year) goto reset;
 
     return_result:
     return res;
 }
 
 static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
-    return do_nextprev(find_next, do_next, find_next_day, find_next_offset, expr, calendar, dot);
+    return do_nextprev(find_next, find_next_day, find_next_offset, expr, calendar, dot);
 }
 
 static int to_upper(char* str) {
@@ -1335,7 +1313,7 @@ static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* da
 }
 
 static int do_prev(cron_expr* expr, struct tm* calendar, int dot) {
-    return do_nextprev(find_prev, do_prev, find_prev_day, find_prev_offset, expr, calendar, dot);
+    return do_nextprev(find_prev, find_prev_day, find_prev_offset, expr, calendar, dot);
 }
 
 time_t cron_prev(cron_expr* expr, time_t date) {
