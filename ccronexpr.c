@@ -307,8 +307,9 @@ static int reset_min(struct tm* calendar, int field) {
 }
 
 static int last_day_of_month(int month, int year) {
-    struct tm cal = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    struct tm cal;
     time_t t;
+    memset(&cal, 0, sizeof(struct tm));
     cal.tm_mon = month + 1;
     cal.tm_year = year;
     t = cron_mktime(&cal);
@@ -316,8 +317,9 @@ static int last_day_of_month(int month, int year) {
 }
 
 static int last_weekday_of_month(int month, int year) {
-    struct tm cal = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    struct tm cal;
     time_t t;
+    memset(&cal, 0, sizeof(struct tm));
     cal.tm_mon = month + 1; /* next month */
     cal.tm_year = year; /* years since 1900 */
     t = cron_mktime(&cal);
@@ -331,9 +333,10 @@ static int last_weekday_of_month(int month, int year) {
 }
 
 static int closest_weekday(int day_of_month, int month, int year) {
-    struct tm cal = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    struct tm cal;
     time_t t;
     int wday;
+    memset(&cal, 0, sizeof(struct tm));
     cal.tm_mon = month; /* given month */
     cal.tm_mday = day_of_month + 1;
     cal.tm_year = year; /* years since 1900 */
