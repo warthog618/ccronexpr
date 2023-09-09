@@ -578,8 +578,7 @@ static int do_nextprev(
     int value = 0;
     int update_value = 0;
 
-    do {
-        reset:
+    for(;;) {
         for (i = 0; i < CRON_CF_ARR_LEN; i++) {
             resets[i] = -1;
             empty_list[i] = -1;
@@ -589,25 +588,25 @@ static int do_nextprev(
         update_value = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, value, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
         if (0 != res) break;
         if (value == update_value) push_to_fields_arr(resets, CRON_CF_SECOND);
-        else if (update_value >= CRON_MAX_SECONDS) goto reset;
+        else if (update_value >= CRON_MAX_SECONDS) continue;
 
         value = calendar->tm_min;
         update_value = find(expr->minutes, CRON_MAX_MINUTES, value, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets, &res);
         if (0 != res) break; 
         if (value == update_value) push_to_fields_arr(resets, CRON_CF_MINUTE);
-        else goto reset;
+        else continue;
 
         value = calendar->tm_hour;
         update_value = find(expr->hours, CRON_MAX_HOURS, value, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_WEEK, resets, &res);
         if (0 != res) break; 
         if (value == update_value) push_to_fields_arr(resets, CRON_CF_HOUR_OF_DAY);
-        else goto reset;
+        else continue;
 
         value = calendar->tm_mday;
         update_value = find_day(calendar, expr->days_of_month, expr->day_in_month, value, expr->days_of_week, calendar->tm_wday, expr->flags, resets, &res);
         if (0 != res) break; 
         if (value == update_value) push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
-        else goto reset;
+        else continue;
 
         value = calendar->tm_mon; /*day already adds one if no day in same value is found*/
         update_value = find(expr->months, CRON_MAX_MONTHS, value, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets, &res);
@@ -617,13 +616,14 @@ static int do_nextprev(
                 res = -1;
                 break;
             }
-            goto reset;
+            continue; 
         }
 
         value = calendar->tm_year;
         update_value = find_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
         if (0 != res) break;
-    } while (value != update_value);
+        if (value == update_value) break;
+    }
 
     return res;
 }
