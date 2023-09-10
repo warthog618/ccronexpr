@@ -227,20 +227,6 @@ static int next_set_bit(uint8_t* bits, int max, int from_index, int* notfound) {
     return 0;
 }
 
-static void push_to_fields_arr(int* arr, int fi) {
-    int i;
-    if (!arr || -1 == fi) return;
-    for (i = 0; i < CRON_CF_ARR_LEN; i++) {
-        if (arr[i] == fi) return;
-    }
-    for (i = 0; i < CRON_CF_ARR_LEN; i++) {
-        if (-1 == arr[i]) {
-            arr[i] = fi;
-            return;
-        }
-    }
-}
-
 static int add_to_field(struct tm* calendar, int field, int val) {
     time_t res = 0;
     if (!calendar || -1 == field) return 1;
@@ -403,13 +389,13 @@ static int reset_max(struct tm* calendar, int field) {
     return CRON_INVALID_INSTANT == res ? 1 : 0;
 }
 
-static int reset_all(int (*fn)(struct tm* calendar, int field), struct tm* calendar, int* fields) {
+static int reset_all(int (*fn)(struct tm* calendar, int field), struct tm* calendar, uint8_t* fields) {
     int i;
     int res = 0;
     if (!calendar || !fields) return 1;
     for (i = 0; i < CRON_CF_ARR_LEN; i++) {
-        if (-1 != fields[i]) {
-            res = fn(calendar, fields[i]);
+        if (cron_get_bit(fields, i)) {
+            res = fn(calendar, i);
             if (0 != res) return res;
         }
     }
@@ -455,7 +441,7 @@ static int set_field(struct tm* calendar, int field, int val) {
  * Search the bits provided for the next set bit after the value provided,
  * and reset the calendar.
  */
-static int find_next_offset(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
+static int find_next_offset(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out) {
     int notfound = 0;
     int err = 0;
     int next_value = next_set_bit(bits, max, value+offset, &notfound)-offset;
@@ -481,7 +467,7 @@ static int find_next_offset(uint8_t* bits, int max, int value, int offset, struc
     return 0;
 }
 
-static int find_next(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
+static int find_next(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out) {
     return find_next_offset(bits, max, value, 0, calendar, field, nextField, lower_orders, res_out);
 }
 
@@ -515,7 +501,7 @@ static int find_nextprev_day_condition(struct tm* calendar, uint8_t* days_of_mon
     return 0;
 }
 
-static int find_nextprev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out, int offset) {
+static int find_nextprev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, uint8_t* resets, int* res_out, int offset) {
     int err;
     unsigned int count = 0;
     unsigned int max = 366;
@@ -550,50 +536,46 @@ static int find_nextprev_day(struct tm* calendar, uint8_t* days_of_month, int8_t
     return 0;
 }
 
-static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out) {
+static int find_next_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, uint8_t* resets, int* res_out) {
     return find_nextprev_day(calendar, days_of_month, day_in_month, day_of_month, days_of_week, day_of_week, flags, resets, res_out, 1);
 }
 
 static int do_nextprev(
-        int (*find)(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out),
-        int (*find_day)(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out),
-        int (*find_offset)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out),
+        int (*find)(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out),
+        int (*find_day)(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, uint8_t* resets, int* res_out),
+        int (*find_offset)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out),
         cron_expr* expr, struct tm* calendar, int dot) {
-    int i;
     int res = 0;
-    int resets[CRON_CF_ARR_LEN];
-    int empty_list[CRON_CF_ARR_LEN];
+    uint8_t resets[1];
+    uint8_t empty_list[1] = {0};
     int value = 0;
     int update_value = 0;
 
     for(;;) {
-        for (i = 0; i < CRON_CF_ARR_LEN; i++) {
-            resets[i] = -1;
-            empty_list[i] = -1;
-        }
+        *resets = 0;
 
         value = calendar->tm_sec;
         update_value = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, value, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list, &res);
         if (0 != res) break;
-        if (value == update_value) push_to_fields_arr(resets, CRON_CF_SECOND);
+        if (value == update_value) cron_set_bit(resets, CRON_CF_SECOND);
         else if (update_value >= CRON_MAX_SECONDS) continue;
 
         value = calendar->tm_min;
         update_value = find(expr->minutes, CRON_MAX_MINUTES, value, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets, &res);
         if (0 != res) break; 
-        if (value == update_value) push_to_fields_arr(resets, CRON_CF_MINUTE);
+        if (value == update_value) cron_set_bit(resets, CRON_CF_MINUTE);
         else continue;
 
         value = calendar->tm_hour;
         update_value = find(expr->hours, CRON_MAX_HOURS, value, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_WEEK, resets, &res);
         if (0 != res) break; 
-        if (value == update_value) push_to_fields_arr(resets, CRON_CF_HOUR_OF_DAY);
+        if (value == update_value) cron_set_bit(resets, CRON_CF_HOUR_OF_DAY);
         else continue;
 
         value = calendar->tm_mday;
         update_value = find_day(calendar, expr->days_of_month, expr->day_in_month, value, expr->days_of_week, calendar->tm_wday, expr->flags, resets, &res);
         if (0 != res) break; 
-        if (value == update_value) push_to_fields_arr(resets, CRON_CF_DAY_OF_MONTH);
+        if (value == update_value) cron_set_bit(resets, CRON_CF_DAY_OF_MONTH);
         else continue;
 
         value = calendar->tm_mon; /*day already adds one if no day in same value is found*/
@@ -1251,7 +1233,7 @@ static int prev_set_bit(uint8_t* bits, int from_index, int to_index, int* notfou
  * Search the bits provided for the next set bit after the value provided,
  * and reset the calendar.
  */
-static int find_prev_offset(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
+static int find_prev_offset(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out) {
     int notfound = 0;
     int err = 0;
     int next_value = prev_set_bit(bits, value, 0, &notfound);
@@ -1278,11 +1260,11 @@ static int find_prev_offset(uint8_t* bits, int max, int value, int offset, struc
     return 0;
 }
 
-static int find_prev(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, int* lower_orders, int* res_out) {
+static int find_prev(uint8_t* bits, int max, int value, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out) {
     return find_prev_offset(bits, max, value, 0, calendar, field, nextField, lower_orders, res_out);
 }
 
-static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* resets, int* res_out) {
+static int find_prev_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, uint8_t* resets, int* res_out) {
     return find_nextprev_day(calendar, days_of_month, day_in_month, day_of_month, days_of_week, day_of_week, flags, resets, res_out, -1);
 }
 
