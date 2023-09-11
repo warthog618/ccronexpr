@@ -139,31 +139,34 @@ int one_dec_num(const char ch) {
     }
 }
 
-int two_dec_num(const char* first) {
-    return one_dec_num(first[0]) * 10 + one_dec_num(first[1]);
-}
-
-int four_dec_num(const char *first) {
-    return ((one_dec_num(first[0]) * 1000)
-          + (one_dec_num(first[1]) * 100)
-          + (one_dec_num(first[2]) * 10)
-          + (one_dec_num(first[3]) * 1));
+int extract_digits(const char *str, int *digit_count) {
+    int num = 0;
+    if (!str || !digit_count) return 0;
+    while (*str) {
+        (*digit_count)++;
+        if (*str >= '0' && *str <= '9') {
+            num = num * 10 + (*str - '0');
+        } else break;
+        str++;
+    }
+    return num;
 }
 
 /* strptime is not available in msvc */
 /* 2012-07-01_09:53:50 */
 /* 0123456789012345678 */
 void poors_mans_strptime(const char* str, struct tm* cal) {
+    int count = 0;
     assert(cal != NULL);
     memset(cal, 0, sizeof(struct tm));
-    cal->tm_year = four_dec_num(str) - 1900;
-    cal->tm_mon = two_dec_num(str + 5) - 1;
-    cal->tm_mday = two_dec_num(str + 8);
+    cal->tm_year = extract_digits(str, &count) - 1900;
+    cal->tm_mon = extract_digits(str + count, &count) - 1;
+    cal->tm_mday = extract_digits(str + count, &count);
     cal->tm_wday = 0;
     cal->tm_yday = 0;
-    cal->tm_hour = two_dec_num(str + 11);
-    cal->tm_min = two_dec_num(str + 14);
-    cal->tm_sec = two_dec_num(str + 17);
+    cal->tm_hour = extract_digits(str + count, &count);
+    cal->tm_min = extract_digits(str + count, &count);
+    cal->tm_sec = extract_digits(str + count, &count);
     cal->tm_isdst = -1;
 }
 
@@ -185,10 +188,10 @@ void check_fn(cron_find_fn fn, const char* pattern, const char* initial, const c
     struct tm* calnext = gmtime(&datenext);
 #endif
     assert(calnext);
-    char* buffer = (char*) malloc(21);
-    memset(buffer, 0, 21);
-    strftime(buffer, 20, DATE_FORMAT, calnext);
-    if (0 != strcmp(expected, buffer)) {
+    char* buffer = (char*) malloc(32);
+    memset(buffer, 0, 32);
+    strftime(buffer, 32, DATE_FORMAT, calnext);
+    if (0 != strcmp(expected, buffer+(buffer[0] == '+' ? 1 : 0))) {
         printf("Line: %d\n", line);
         printf("Pattern: %s\n", pattern);
         printf("Initial: %s\n", initial);
@@ -502,6 +505,7 @@ void test_parse() {
     check_same("* * * * * 6#-1", "* * * * * 6L");
     check_same("0 0 0 * * *", "0 0 * * *");
     check_same("0 0 0 * * *", "0 0 0 * * * *");
+    check_same("* * * * * *", "* * * * * * *");
 
     check_same("@annually", "0 0 0 1 1 * *");
     check_same("@yearly", "0 0 0 1 1 * *");

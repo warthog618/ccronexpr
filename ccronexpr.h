@@ -56,6 +56,9 @@ extern "C" {
  * *        *       6#3
  * *        *       6#-3
  */
+
+#define EXPR_YEARS_LENGTH 29
+
 typedef struct {
     uint8_t seconds[8];
     uint8_t minutes[8];
@@ -82,7 +85,7 @@ typedef struct {
        1 last weekday of the month
        2 closest weekday to day in month
     */
-    uint8_t years[29];
+    uint8_t years[EXPR_YEARS_LENGTH];
     uint8_t months[2];
 } cron_expr;
 
