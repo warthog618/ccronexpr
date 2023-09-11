@@ -589,10 +589,12 @@ static int do_nextprev(
             continue; 
         }
 
-        value = calendar->tm_year;
-        update_value = find_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
-        if (0 != res) break;
-        if (value == update_value) break;
+        if (!cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) {
+            value = calendar->tm_year;
+            update_value = find_offset(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
+            if (0 != res) break;
+            if (value == update_value) break;
+        } else break;
     }
 
     return res;
@@ -1152,9 +1154,13 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
         if (*error) goto return_res;
     }
     if (len < 7) {
-        set_years((char *)"*", target->years, error);
+        cron_set_bit(target->years, EXPR_YEARS_LENGTH*8-1);
     } else {
-        set_years(fields[pos], target->years, error);
+        if (strcmp("*", fields[0])) {
+            cron_set_bit(target->years, EXPR_YEARS_LENGTH*8-1);
+        } else {
+            set_years(fields[pos], target->years, error);
+        }
     }
     if (*error) goto return_res;
     goto return_res;
