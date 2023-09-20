@@ -475,21 +475,18 @@ static int find_nextprev_day_condition(struct tm* calendar, uint8_t* days_of_mon
     static int day;
     if (*changed) {
         if (*flags) {
-            if      (cron_get_bit(flags, 0)) day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
-            else if (cron_get_bit(flags, 1)) day = last_weekday_of_month(calendar->tm_mon, calendar->tm_year);
-            else if (cron_get_bit(flags, 2)) day = closest_weekday(*day_in_month-1, calendar->tm_mon, calendar->tm_year);
-        } else {
-            if      (*day_in_month < 0)      day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
-        }
+            if      (*flags & 1)        day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+            else if (*flags & 2)        day = last_weekday_of_month(calendar->tm_mon, calendar->tm_year);
+            else if (*flags & 4)        day = closest_weekday(*day_in_month-1, calendar->tm_mon, calendar->tm_year);
+        } else if   (*day_in_month < 0) day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
         *changed = 0;
     }
 
     if (!cron_get_bit(days_of_month, day_of_month)) return 1;
     if (!cron_get_bit(days_of_week, day_of_week)) return 1;
     if (*flags) {
-        if ((cron_get_bit(flags, 0) && day != day_of_month-1-*day_in_month)) return 1;
-        if ((cron_get_bit(flags, 1) && day != day_of_month-1-*day_in_month)) return 1;
-        if ((cron_get_bit(flags, 2) && day != day_of_month)) return 1;
+        if ((*flags & 3) && day_of_month != day+1+*day_in_month) return 1;
+        if ((*flags & 4) && day_of_month != day) return 1;
     } else {
         if (*day_in_month < 0 && 
                 (day_of_month <  day+WEEK_DAYS**day_in_month+1 || 
