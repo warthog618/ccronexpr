@@ -21,11 +21,9 @@
  * Created on February 24, 2015, 9:35 AM
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
-#include <limits.h>
 #include <string.h>
 
 #include "ccronexpr.h"
@@ -363,7 +361,7 @@ static int reset_max(struct tm* calendar, int field) {
         break;
     case CRON_CF_YEAR:
         /* I don't think this is supposed to happen ... */
-        fprintf(stderr, "reset CRON_CF_YEAR\n");
+        /* fprintf(stderr, "reset CRON_CF_YEAR\n"); */
         break;
     default:
         return 1; /* unknown field */;;
@@ -585,11 +583,10 @@ static int do_next(cron_expr* expr, struct tm* calendar, int dot) {
 }
 
 static int to_upper(char* str) {
-    int i = 0;
-    if (!str) return 1;
-    for (i = 0; '\0' != str[i]; i++) {
-        int c = (int)str[i];
-        str[i] = (char) toupper(c);
+    if (!str) return -1;
+    for (; *str; ++str) {
+        /* ASCII value of 'a' is 97 and 'z' is 122 */
+        if (*str >= 'a' && *str <= 'z') *str = *str - ('a' - 'A');
     }
     return 0;
 }
@@ -599,7 +596,7 @@ static int parse_uint(const char* str, int* errcode) {
     long int l;
     errno = 0;
     l = strtol(str, &endptr, 10);
-    if (errno == ERANGE || *endptr != '\0' || l < 0 || l > INT_MAX) {
+    if (errno == ERANGE || *endptr != '\0' || l < 0) {
         *errcode = 1;
         return 0;
     } else {
