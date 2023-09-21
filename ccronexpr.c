@@ -21,15 +21,12 @@
  * Created on February 24, 2015, 9:35 AM
  */
 
-#define _ISOC99_SOURCE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
-#include <math.h>
 
 #include "ccronexpr.h"
 
@@ -657,11 +654,13 @@ static char** split_str(const char* value, char del, size_t* len_out) {
 static char* replace_ordinals(char* str, const char* const * arr, size_t arr_len) {
     size_t i, index_length, diff;
     char *found;
-    char index_str[4];
+    char index_str[3];
     for(i = 0; i < arr_len; i++) {
         while ((found = strstr(str, arr[i])) != NULL) {
-            index_length = (size_t) snprintf(NULL, 0, "%lu", (long unsigned int)i);
-            snprintf(index_str, sizeof(index_str), "%lu", (long unsigned int)i);
+            index_length = 0;
+            if (i>=10) index_str[index_length++] = '0' + (char)i/10;
+            index_str[index_length++] = '0' + (char)i%10;
+            index_str[index_length] = '\0';
             diff = (size_t) (found - str);
             memmove(found + index_length, found + 3, strlen(str) - (diff + 2));
             strncpy(found, index_str, index_length);
