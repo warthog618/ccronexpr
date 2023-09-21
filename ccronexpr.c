@@ -21,6 +21,8 @@
  * Created on February 24, 2015, 9:35 AM
  */
 
+#define _ISOC99_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -61,9 +63,6 @@ static const char* const DAYS_ARR[] = { "SUN", "MON", "TUE", "WED", "THU", "FRI"
 #define CRON_DAYS_ARR_LEN 7
 static const char* const MONTHS_ARR[] = { "FOO", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
 #define CRON_MONTHS_ARR_LEN 13
-
-#define CRON_MAX_STR_LEN_TO_SPLIT 256
-#define CRON_SIZE_STRING_MAX_LEN 20
 
 #ifndef CRON_TEST_MALLOC
 #define cron_malloc(x) malloc(x)
@@ -195,23 +194,10 @@ uint8_t cron_get_bit(const uint8_t* rbyte, int idx) {
     return (rbyte[GET_BYTE(idx)] & (1 << GET_BIT(idx))) ? 1 : 0;
 }
 
-static void free_splitted(char** splitted, size_t len) {
-    size_t i;
+static void free_splitted(char** splitted) {
     if (!splitted) return;
-    for (i = 0; i < len; i++) {
-        if (splitted[i]) cron_free(splitted[i]);
-    }
+    cron_free(splitted[0]);
     cron_free(splitted);
-}
-
-static char* strdupl(const char* str, size_t len) {
-    char* res = NULL;
-    if (!str) return NULL;
-    res = (char*) cron_malloc(len + 1);
-    if (!res) return NULL;
-    memcpy(res, str, len);
-    res[len] = '\0';
-    return res;
 }
 
 static int next_set_bit(uint8_t* bits, int max, int from_index, int* notfound) {
@@ -611,66 +597,6 @@ static int to_upper(char* str) {
     return 0;
 }
 
-static void strreverse(char* begin, char* end)
-{
-    char aux;
-    while (end > begin)
-        aux = *end, *end-- = *begin, *begin++ = aux;
-}
-
-/* included from https://github.com/client9/stringencoders/blob/master/src/modp_numtoa.c */
-size_t to_string(size_t value, char* str)
-{
-    char* wstr = str;
-    /* Conversion. Number is reversed. */
-    do
-        *wstr++ = (char)(48 + (value % 10));
-    while (value /= 10);
-    *wstr = '\0';
-    /* Reverse string */
-    strreverse(str, wstr - 1);
-    return (size_t)(wstr - str);
-}
-
-static char* str_replace(char *orig, const char *rep, const char *with) {
-    char *result; /* the return string */
-    char *ins; /* the next insert point */
-    char *tmp; /* varies */
-    size_t len_rep; /* length of rep */
-    size_t len_with; /* length of with */
-    size_t len_front; /* distance between rep and end of last rep */
-    size_t count; /* number of replacements */
-    if (!orig) return NULL;
-    if (!rep) rep = "";
-    if (!with) with = "";
-    len_rep = strlen(rep);
-    len_with = strlen(with);
-
-    ins = orig;
-    for (count = 0; NULL != (tmp = strstr(ins, rep)); ++count) {
-        ins = tmp + len_rep;
-    }
-
-    /* first time through the loop, all the variable are set correctly
-     from here on,
-     tmp points to the end of the result string
-     ins points to the next occurrence of rep in orig
-     orig points to the remainder of orig after "end of rep"
-     */
-    tmp = result = (char*) cron_malloc(strlen(orig) + (len_with - len_rep) * count + 1);
-    if (!result) return NULL;
-
-    while (count--) {
-        ins = strstr(orig, rep);
-        len_front = (size_t)(ins - orig);
-        tmp = strncpy(tmp, orig, len_front) + len_front;
-        tmp = strcpy(tmp, with) + len_with;
-        orig += len_front + len_rep; /* move to next "end of rep" */
-    }
-    strcpy(tmp, orig);
-    return result;
-}
-
 static int parse_uint(const char* str, int* errcode) {
     char* endptr = NULL;
     long int l;
@@ -689,99 +615,59 @@ static int parse_int(const char* str, int* errcode) {
     return *str == '-' ? -parse_uint(str+1, errcode) : parse_uint(str, errcode);
 }
 
-static char** split_str(const char* str, char del, size_t* len_out) {
-    size_t i = 0;
-    size_t stlen = 0;
-    size_t len = 0;
-    int accum = 0;
-    char* buf = NULL;
-    char** res = NULL;
-    size_t bi = 0;
-    size_t ri = 0;
-    char* tmp = NULL;
+static char** split_str(const char* value, char del, size_t* len_out) {
+    size_t count = 0, idx = 0;
+    char *str, *start, *end;
+    char **result;
+    const char *temp;
 
-    if (!str) goto return_error;
-    for (i = 0; '\0' != str[i]; i++) {
-        stlen += 1;
-        if (stlen >= CRON_MAX_STR_LEN_TO_SPLIT) goto return_error;
+    if (!value || !len_out) return NULL;
+
+    str = (char *)cron_malloc(sizeof(char) * (strlen(value) + 1));
+    strcpy(str, value);
+    temp = str;
+
+    /* Count occurrences of delimiter to determine number of substrings */
+    while ((temp = strchr(temp, del)) != NULL) {
+        count++;
+        do temp++; while (del == *temp); /* move past the current delimiter */
     }
 
-    for (i = 0; i < stlen; i++) {
-        int c = (unsigned char)str[i];
-        if (del == str[i]) {
-            if (accum > 0) {
-                len += 1;
-                accum = 0;
-            }
-        } else if (!isspace(c)) {
-            accum += 1;
-        }
-    }
-    /* tail */
-    if (accum > 0) {
-        len += 1;
-    }
-    if (0 == len) return NULL;
+    result = (char **)cron_malloc(sizeof(char *) * (count + 1));
+    if (!result) return NULL;
 
-    buf = (char*) cron_malloc(stlen + 1);
-    if (!buf) goto return_error;
-    memset(buf, 0, stlen + 1);
-    res = (char**) cron_malloc(len * sizeof(char*));
-    if (!res) goto return_error;
-    memset(res, 0, len * sizeof(char*));
+    start = str;
+    end = strchr(str, del);
 
-    for (i = 0; i < stlen; i++) {
-        int c = (unsigned char)str[i];
-        if (del == str[i]) {
-            if (bi > 0) {
-                if (ri >= len)  goto return_error;
-                tmp = strdupl(buf, bi);
-                if (!tmp) goto return_error;
-                res[ri++] = tmp;
-                memset(buf, 0, stlen + 1);
-                bi = 0;
-            }
-        } else if (!isspace(c)) {
-            buf[bi++] = str[i];
-        }
+    /* Point to each substring's start and replace delimiters */
+    while (end != NULL) {
+        result[idx++] = start;
+        *end = '\0';
+        start = end + 1;
+        while (del == *start) start++;
+        end = strchr(start, del);
     }
-    /* tail */
-    if (bi > 0) {
-        if (ri >= len)  goto return_error;
-        tmp = strdupl(buf, bi);
-        if (!tmp) goto return_error;
-        res[ri++] = tmp;
-    }
-    cron_free(buf);
-    *len_out = len;
-    return res;
 
-    return_error:
-    if (buf) {
-        cron_free(buf);
-    }
-    free_splitted(res, len);
-    *len_out = 0;
-    return NULL;
+    result[idx++] = (char *)start;  /* the last substring */
+
+    *len_out = idx;  /* update len_out to indicate the number of substrings */
+    return result;
 }
 
-static char* replace_ordinals(char* value, const char* const * arr, size_t arr_len) {
-    size_t i;
-    char* cur = value;
-    char* res = NULL;
-    int first = 1;
-    char strnum[CRON_SIZE_STRING_MAX_LEN + 1];
-
-    for (i = 0; i < arr_len; i++) {
-        to_string(i, strnum);
-
-        res = str_replace(cur, arr[i], strnum);
-        if (!first) cron_free(cur);
-        if (!res) return NULL;
-        cur = res;
-        if (first) first = 0;
+static char* replace_ordinals(char* str, const char* const * arr, size_t arr_len) {
+    size_t i, index_length, diff;
+    char *found;
+    char index_str[4];
+    for(i = 0; i < arr_len; i++) {
+        while ((found = strstr(str, arr[i])) != NULL) {
+            index_length = (size_t) snprintf(NULL, 0, "%lu", (long unsigned int)i);
+            snprintf(index_str, sizeof(index_str), "%lu", (long unsigned int)i);
+            diff = (size_t) (found - str);
+            memmove(found + index_length, found + 3, strlen(str) - (diff + 2));
+            strncpy(found, index_str, index_length);
+        }
     }
-    return res;
+    return str;
 }
 
 static size_t has_char(const char* str, char ch) {
@@ -816,7 +702,6 @@ static void get_range(const char* field, int min, int max, int* res, const char*
             *error = "Unsigned integer parse error 1";
             goto return_error;
         }
-
         res[0] = val;
         res[1] = val;
     } else {
@@ -850,12 +735,10 @@ static void get_range(const char* field, int min, int max, int* res, const char*
         goto return_error;
     }
 
-    free_splitted(parts, len);
     *error = NULL;
-    return;
 
     return_error:
-    free_splitted(parts, len);
+    free_splitted(parts);
 }
 
 static void set_number_hits_offset(const char* value, uint8_t* target, int min, int max, int offset, const char** error) {
@@ -890,12 +773,12 @@ static void set_number_hits_offset(const char* value, uint8_t* target, int min, 
             char** split = split_str(fields[i], '/', &len2);
             if (2 != len2) {
                 *error = "Incrementer must have two fields";
-                free_splitted(split, len2);
+                free_splitted(split);
                 goto return_result;
             }
             get_range(split[0], min, max, range, error);
             if (*error) {
-                free_splitted(split, len2);
+                free_splitted(split);
                 goto return_result;
             }
             if (!has_char(split[0], '-')) {
@@ -904,25 +787,22 @@ static void set_number_hits_offset(const char* value, uint8_t* target, int min, 
             delta = parse_uint(split[1], &err);
             if (err) {
                 *error = "Unsigned integer parse error 4";
-                free_splitted(split, len2);
+                free_splitted(split);
                 goto return_result;
             }
             if (0 == delta) {
                 *error = "Incrementer may not be zero";
-                free_splitted(split, len2);
+                free_splitted(split);
                 goto return_result;
             }
             for (i1 = range[0]; i1 <= range[1]; i1 += delta) {
                 cron_set_bit(target, i1+offset);
             }
-            free_splitted(split, len2);
+            free_splitted(split);
         }
     }
-    goto return_result;
-
     return_result:
-    free_splitted(fields, len);
-
+    free_splitted(fields);
 }
 
 static void set_number_hits(const char* value, uint8_t* target, int min, int max, const char** error) {
@@ -933,16 +813,9 @@ static void set_months(char* value, uint8_t* targ, const char** error) {
     int i;
     int max = CRON_MAX_MONTHS;
 
-    char* replaced = NULL;
-
     to_upper(value);
-    replaced = replace_ordinals(value, MONTHS_ARR, CRON_MONTHS_ARR_LEN);
-    if (!replaced) {
-        *error = "Invalid month format";
-        return;
-    }
-    set_number_hits(replaced, targ, 1, max + 1, error);
-    cron_free(replaced);
+    replace_ordinals(value, MONTHS_ARR, CRON_MONTHS_ARR_LEN);
+    set_number_hits(value, targ, 1, max + 1, error);
 
     /* ... and then rotate it to the front of the months */
     for (i = 1; i <= max; i++) {
@@ -961,7 +834,6 @@ static void set_years(char* value, uint8_t* targ, const char** error) {
 
 static void set_days_of_week(char* field, uint8_t* days_of_week, int8_t* day_in_month, const char** error) {
     const int max = 7;
-    char* replaced = NULL;
     size_t pos;
     int err;
 
@@ -994,13 +866,8 @@ static void set_days_of_week(char* field, uint8_t* days_of_week, int8_t* day_in_
             return;
         }
     }
-    replaced = replace_ordinals(field, DAYS_ARR, CRON_DAYS_ARR_LEN);
-    if (!replaced) {
-        *error = "Invalid day format";
-        return;
-    }
-    set_number_hits(replaced, days_of_week, 0, max + 1, error);
-    cron_free(replaced);
+    replace_ordinals(field, DAYS_ARR, CRON_DAYS_ARR_LEN);
+    set_number_hits(field, days_of_week, 0, max + 1, error);
 
     if (cron_get_bit(days_of_week, 7)) {
         /* Sunday can be represented as 0 or 7*/
@@ -1163,7 +1030,7 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
     goto return_res;
 
     return_res:
-    free_splitted(fields, len);
+    free_splitted(fields);
 }
 
 time_t cron_nextprev(int (*fn)(cron_expr* expr, struct tm* calendar, int dot), cron_expr* expr, time_t date, int offset) {
