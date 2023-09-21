@@ -703,10 +703,8 @@ static char* replace_ordinals(char* str, const char* const * arr, size_t arr_len
 static size_t has_char(const char* str, char ch) {
     size_t i = 0;
     if (!str) return 0;
-    for (i = 0; str[i] != '\0'; i++) {
-        /* Match at first character is now treated as failure for convenience! */
-        if (str[i] == ch) return i;
-    }
+    /* Match at first character is now treated as failure for convenience! */
+    for (i = 0; str[i]; i++) if (str[i] == ch) return i;
     return 0;
 }
 
