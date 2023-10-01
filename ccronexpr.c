@@ -838,20 +838,9 @@ static void set_number_hits(const char* value, uint8_t* target, int min, int max
 }
 
 static void set_months(char* value, uint8_t* targ, const char** error) {
-    int i;
-    int max = CRON_MAX_MONTHS;
-
     to_upper(value);
     replace_ordinals(value, MONTHS_ARR, CRON_MONTHS_ARR_LEN);
-    set_number_hits(value, targ, 1, max + 1, error);
-
-    /* ... and then rotate it to the front of the months */
-    for (i = 1; i <= max; i++) {
-        if (cron_get_bit(targ, i)) {
-            cron_set_bit(targ, i - 1);
-            cron_del_bit(targ, i);
-        }
-    }
+    set_number_hits_offset(value, targ, 1, CRON_MAX_MONTHS + 1, -1, error);
 }
 
 static void set_years(char* value, uint8_t* targ, const char** error) {
