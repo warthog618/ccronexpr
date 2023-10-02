@@ -422,10 +422,11 @@ static int Range(Context* context, int* from, int to) {
         case T_HASH:
             if (CRON_CF_DAY_OF_WEEK == context->field_type) {
                 token_next(context);
+                if (*context->target->day_in_month) PARSE_ERROR("Nth-day - support for specifying multiple '#' segments is not implemented");
                 *context->target->day_in_month = (int8_t)Number(context);
                 if (*context->target->day_in_month > 5 || *context->target->day_in_month < -5)
-                    PARSE_ERROR("Range '#' can follow only with -5..5");
-            } else PARSE_ERROR("Range - '#' allowed only for day of week");
+                    PARSE_ERROR("Nth-day - '#' can follow only with -5..5");
+            } else PARSE_ERROR("Nth-day - '#' allowed only for day of week");
             break;
         case T_MINUS:
             token_next(context);
