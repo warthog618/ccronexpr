@@ -175,6 +175,7 @@ typedef time_t (*cron_find_fn)(cron_expr*, time_t);
 void check_fn(cron_find_fn fn, const char* pattern, const char* initial, const char* expected, int line) {
     const char* err = NULL;
     cron_expr parsed;
+    /*printf("Pattern: %s\n", pattern);**/
     cron_parse_expr(pattern, &parsed, &err);
 
     struct tm calinit;
@@ -207,6 +208,8 @@ void check_same(const char* expr1, const char* expr2) {
     cron_parse_expr(expr1, &parsed1, NULL);
     cron_expr parsed2;
     cron_parse_expr(expr2, &parsed2, NULL);
+    printf("parsed1: %s\n", expr1);
+    printf("parsed2: %s\n", expr2);
     assert(crons_equal(&parsed1, &parsed2));
 }
 
@@ -224,6 +227,7 @@ void check_expr_invalid(const char* expr) {
     const char* err = NULL;
     cron_expr test;
     cron_parse_expr(expr, &test, &err);
+    printf("parsed: %s\n", expr);
     if (err) {
         printf("check_expor_invalid: %s\n", err);
     }
@@ -533,6 +537,7 @@ void test_parse() {
     check_same("* * * * 2 *", "* * * * Feb *");
     check_same("*  *  * *  1 *", "* * * * 1 *");
 
+    check_expr_invalid("Z * * * * *");
     check_expr_invalid("* * * * * 1#-6");
     check_expr_invalid("* * * * * 1#6");
 
@@ -554,7 +559,6 @@ void test_parse() {
     check_expr_invalid("*/0 * * * * *");
     check_expr_invalid("*/-0 * * * * *");
     check_expr_invalid("* 1 1 0 * *");
-
 }
 
 void test_bits() {
@@ -607,7 +611,6 @@ void test_memory() {
 #endif
 
 int main() {
-
     test_bits();
 
     test_expr();
