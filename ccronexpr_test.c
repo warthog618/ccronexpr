@@ -192,6 +192,7 @@ void check_fn(cron_find_fn fn, const char* pattern, const char* initial, const c
     char* buffer = (char*) malloc(32);
     memset(buffer, 0, 32);
     strftime(buffer, 32, DATE_FORMAT, calnext);
+    printf("parsed: %s\n", pattern);
     if (0 != strcmp(expected, buffer+(buffer[0] == '+' ? 1 : 0))) {
         printf("Line: %d\n", line);
         printf("Pattern: %s\n", pattern);
@@ -240,7 +241,7 @@ void check_expr_valid(const char* expr) {
     cron_parse_expr(expr, &test, &err);
     printf("parsed: %s\n", expr);
     if (err) {
-        printf("check_expor_invalid: %s\n", err);
+        printf("check_expor_valid: %s\n", err);
     }
     assert(!err);
 }
