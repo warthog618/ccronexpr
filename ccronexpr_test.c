@@ -230,7 +230,7 @@ void check_expr_invalid(const char* expr) {
     cron_parse_expr(expr, &test, &err);
     printf("parsed: %s\n", expr);
     if (err) {
-        printf("check_expor_invalid: %s\n", err);
+        printf("check_expr_invalid: %s\n", err);
     }
     assert(err);
 }
@@ -241,7 +241,7 @@ void check_expr_valid(const char* expr) {
     cron_parse_expr(expr, &test, &err);
     printf("parsed: %s\n", expr);
     if (err) {
-        printf("check_expor_valid: %s\n", err);
+        printf("check_expr_valid: %s\n", err);
     }
     assert(!err);
 }
