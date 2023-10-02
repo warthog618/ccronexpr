@@ -303,9 +303,8 @@ static int closest_weekday(int day_of_month, int month, int year) {
         /* If it's the last day of the month, go to the previous Friday */
         if (day_of_month + 1 == last_day_of_month(month, year)) t -= 2 * DAY_SECONDS;
         else t += DAY_SECONDS; /* go to the next Monday */
-    }
     /* If it's a Saturday */
-    else if (wday == 6) {
+    } else if (wday == 6) {
         /* If it's the first day of the month, go to the next Monday */
         if (day_of_month == 0) t += 2 * DAY_SECONDS;
         else t -= DAY_SECONDS; /* go to the previous Friday */
@@ -322,13 +321,13 @@ static int closest_weekday(int day_of_month, int month, int year) {
 typedef enum { T_ASTERISK, T_QUESTION, T_NUMBER, T_COMMA, T_SLASH, T_L, T_W, T_HASH, T_MINUS, T_WS, T_EOF, T_INVALID } TokenType;
 typedef struct { const char* input; TokenType type; cron_expr* target; int field_type, value, min, max, offset, fix_dow; uint8_t* field; char* err; } Context;
 
-static int compare_strings(const char *str1, const char *str2, size_t len) {
+static int compare_strings(const char* str1, const char* str2, size_t len) {
     size_t i;
     for (i = 0; i < len; i++) if (toupper(str1[i]) != str2[i]) return str1[i] - str2[i];
     return 0;
 }
 
-static int match_ordinals(const char* str, const char* const * arr, size_t arr_len) {
+static int match_ordinals(const char* str, const char* const* arr, size_t arr_len) {
     size_t i;
     for (i = 0; i < arr_len; i++) if (!compare_strings(str, arr[i], strlen(arr[i]))) return (int)i;
     return -1;
@@ -505,7 +504,7 @@ static void Segment(Context* context) {
     }
     done: if (context->err) goto error;
     if (CRON_CF_DAY_OF_WEEK == context->field_type && context->fix_dow) return;
-    if (from < context->min || to < context->min)   PARSE_ERROR("Range - specified range is less than minimum");
+    if (from  < context->min || to  < context->min) PARSE_ERROR("Range - specified range is less than minimum");
     if (from >= context->max || to >= context->max) PARSE_ERROR("Range - specified range exceeds maximum");
     if (from > to)                                  PARSE_ERROR("Range - specified range start exceeds range end");
     for (; from <= to; from+=delta) cron_set_bit(context->field, from+context->offset);
@@ -542,14 +541,11 @@ static void FieldWrapper(Context* context, int field_type, int min, int max, int
 #define TOKEN_COMPARE(context, token) if (context->err) goto error; if (token == context->type) token_next(context); else goto compare_error;
 
 static void Fields(Context* context, int len) {
-    const char* input = context->input;
-    if (len < 6) context->input = "0 ";
     token_next(context);
-    FieldWrapper(context, CRON_CF_SECOND, 0, CRON_MAX_SECONDS, 0, context->target->seconds);
-    TOKEN_COMPARE(context, T_WS);
-    if (len < 6) {
-        context->input = input;
-        token_next(context);
+    if (len < 6) cron_set_bit(context->target->seconds, 0);
+    else {
+        FieldWrapper(context, CRON_CF_SECOND, 0, CRON_MAX_SECONDS, 0, context->target->seconds);
+        TOKEN_COMPARE(context, T_WS);
     }
     FieldWrapper(context, CRON_CF_MINUTE, 0, CRON_MAX_MINUTES, 0, context->target->minutes);
     TOKEN_COMPARE(context, T_WS);
