@@ -381,7 +381,7 @@ static void token_next(Context* context) {
     if (T_INVALID == context->type) context->err = "Invalid token.";
 }
 
-#define error(message) { context->err = message; goto error; }
+#define PARSE_ERROR(message) { context->err = message; goto error; }
 
 static int Number(Context* context) {
     int value = 0;
@@ -391,10 +391,10 @@ static int Number(Context* context) {
             if (T_NUMBER == context->type) {
                 value = -context->value;
                 token_next(context);
-            } else error("Number '-' follows with number.");
+            } else PARSE_ERROR("Number '-' follows with number.");
             break;
         case T_NUMBER: value = context->value; token_next(context); break;
-        default: error("Number - error.");
+        default: PARSE_ERROR("Number - error.");
     }
     error: return value;
 }
@@ -405,13 +405,13 @@ static int Frequency(Context* context, int delta, int* to, int range) {
             token_next(context);
             if (T_NUMBER == context->type) {
                 delta = context->value;
-                if (delta < 1) error("Frequency - needs to be at least 1.");
+                if (delta < 1) PARSE_ERROR("Frequency - needs to be at least 1.");
                 if (!range) *to = context->max - 1;
                 token_next(context);
-            } else error("Frequency - '/' follows with number.");
+            } else PARSE_ERROR("Frequency - '/' follows with number.");
             break;
         case T_COMMA: case T_WS: case T_EOF: break;
-        default: error("Frequency - error.");
+        default: PARSE_ERROR("Frequency - error.");
     }
     error: return delta;
 }
@@ -424,15 +424,15 @@ static int Range(Context* context, int* from, int to) {
                 token_next(context);
                 *context->target->day_in_month = (int8_t)Number(context);
                 if (*context->target->day_in_month > 5 || *context->target->day_in_month < -5)
-                    error("Range '#' can follow only with -5..5.");
-            } else error("Range - '#' allowed only for day of week.");
+                    PARSE_ERROR("Range '#' can follow only with -5..5.");
+            } else PARSE_ERROR("Range - '#' allowed only for day of week.");
             break;
         case T_MINUS:
             token_next(context);
             if (T_NUMBER == context->type) {
                 to = context->value;
                 token_next(context);
-            } else error("Range '-' follows with number.");
+            } else PARSE_ERROR("Range '-' follows with number.");
             break;
         case T_W:
             *context->target->day_in_month = (int8_t)to;
@@ -446,10 +446,10 @@ static int Range(Context* context, int* from, int to) {
             if (CRON_CF_DAY_OF_WEEK == context->field_type) {
                 *context->target->day_in_month = -1;
                 token_next(context);
-            } else error("Range - 'L' allowed only for day of week.");
+            } else PARSE_ERROR("Range - 'L' allowed only for day of week.");
             break;
         case T_WS: case T_SLASH: case T_COMMA: case T_EOF: break;
-        default: error("Range - error.");
+        default: PARSE_ERROR("Range - error.");
     }
     error: return to;
 }
@@ -480,9 +480,9 @@ static void Segment(Context* context) {
                                 cron_set_bit(context->target->flags, 1);
                                 context->fix_dow = 1;
                                 goto done;
-                            } else error("Offset - 'W' allowed only for day of month.");
+                            } else PARSE_ERROR("Offset - 'W' allowed only for day of month.");
                         case T_COMMA: case T_WS: case T_EOF: break;
-                        default: error("Offset - error.");
+                        default: PARSE_ERROR("Offset - error.");
                     }
                     /* Note 0..6 and not 1..7, see end of set_days_of_week. */
                     for (i = 0; i <= 6; i++) cron_set_bit(context->target->days_of_week, i);
@@ -490,7 +490,7 @@ static void Segment(Context* context) {
                     context->fix_dow = 1;
                     break;
                 case CRON_CF_DAY_OF_WEEK: from = to = 0; break;
-                default: error("Segment 'L' allowed only for day of month and leap seconds.")
+                default: PARSE_ERROR("Segment 'L' allowed only for day of month and leap seconds.")
             }
             break;
         case T_W:
@@ -499,13 +499,13 @@ static void Segment(Context* context) {
             context->fix_dow = 1;
             break;
         case T_QUESTION: token_next(context); break;
-        default: error("Segment - error.");
+        default: PARSE_ERROR("Segment - error.");
     }
     done: if (context->err) goto error;
     if (CRON_CF_DAY_OF_WEEK == context->field_type && context->fix_dow) return;
-    if (from < context->min || to < context->min)   error("Range - specified range is less than minimum.");
-    if (from >= context->max || to >= context->max) error("Range - specified range exceeds maximum.");
-    if (from > to)                                  error("Range - specified range start exceeds range end.");
+    if (from < context->min || to < context->min)   PARSE_ERROR("Range - specified range is less than minimum.");
+    if (from >= context->max || to >= context->max) PARSE_ERROR("Range - specified range exceeds maximum.");
+    if (from > to)                                  PARSE_ERROR("Range - specified range start exceeds range end.");
     for (; from <= to; from+=delta) cron_set_bit(context->field, from+context->offset);
     if (CRON_CF_DAY_OF_WEEK == context->field_type) {
         if (cron_get_bit(context->field, 7)) {
@@ -523,7 +523,7 @@ static void Field(Context* context) {
     switch (context->type) {
         case T_COMMA: token_next(context); Field(context); break;
         case T_WS: case T_EOF: break;
-        default: error("FieldRest - error.");
+        default: PARSE_ERROR("FieldRest - error.");
     }
     error: return;
 }
@@ -537,30 +537,30 @@ static void FieldWrapper(Context* context, int field_type, int min, int max, int
     Field(context);
 }
 
-#define token_compare(context, token) if (context->err) goto error; if (token == context->type) token_next(context); else goto compare_error;
+#define TOKEN_COMPARE(context, token) if (context->err) goto error; if (token == context->type) token_next(context); else goto compare_error;
 
 static void Fields(Context* context, int len) {
     const char* input = context->input;
     if (len < 6) context->input = "0 ";
     token_next(context);
     FieldWrapper(context, CRON_CF_SECOND, 0, CRON_MAX_SECONDS, 0, context->target->seconds);
-    token_compare(context, T_WS);
+    TOKEN_COMPARE(context, T_WS);
     if (len < 6) {
         context->input = input;
         token_next(context);
     }
     FieldWrapper(context, CRON_CF_MINUTE, 0, CRON_MAX_MINUTES, 0, context->target->minutes);
-    token_compare(context, T_WS);
+    TOKEN_COMPARE(context, T_WS);
     FieldWrapper(context, CRON_CF_HOUR_OF_DAY, 0, CRON_MAX_HOURS, 0, context->target->hours);
-    token_compare(context, T_WS);
+    TOKEN_COMPARE(context, T_WS);
     FieldWrapper(context, CRON_CF_DAY_OF_MONTH, 1, CRON_MAX_DAYS_OF_MONTH, 0, context->target->days_of_month);
-    token_compare(context, T_WS);
+    TOKEN_COMPARE(context, T_WS);
     FieldWrapper(context, CRON_CF_MONTH, 1, CRON_MAX_MONTHS + 1, -1, context->target->months);
-    token_compare(context, T_WS);
+    TOKEN_COMPARE(context, T_WS);
     FieldWrapper(context, CRON_CF_DAY_OF_WEEK, 0, CRON_MAX_DAYS_OF_WEEK + 1, 0, context->target->days_of_week);
     if (len < 7) cron_set_bit(context->target->years, EXPR_YEARS_LENGTH*8-1);
     else {
-        token_compare(context, T_WS);
+        TOKEN_COMPARE(context, T_WS);
         FieldWrapper(context, CRON_CF_YEAR, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS, context->target->years);
     }
     return;
@@ -568,9 +568,6 @@ static void Fields(Context* context, int len) {
     context->err = "Fields - expected whitespace separator.";
     error: return;
 }
-
-#undef token_compare
-#undef error
 
 static int reset_all(int (*fn)(struct tm* calendar, int field), struct tm* calendar, uint8_t* fields) {
     int i;
