@@ -234,6 +234,17 @@ void check_expr_invalid(const char* expr) {
     assert(err);
 }
 
+void check_expr_valid(const char* expr) {
+    const char* err = NULL;
+    cron_expr test;
+    cron_parse_expr(expr, &test, &err);
+    printf("parsed: %s\n", expr);
+    if (err) {
+        printf("check_expor_invalid: %s\n", err);
+    }
+    assert(!err);
+}
+
 void test_expr() {
     char* tz = getenv("TZ");
     /*Test leap seconds - nejsou nastavené hodnoty, co se kontrolují */ 
@@ -559,6 +570,74 @@ void test_parse() {
     check_expr_invalid("*/0 * * * * *");
     check_expr_invalid("*/-0 * * * * *");
     check_expr_invalid("* 1 1 0 * *");
+
+    /* Source: https://www.freeformatter.com/cron-expression-generator-quartz.html */
+
+    check_expr_valid("* * * ? * *");                /* Every second */
+    check_expr_valid("0 * * ? * *");                /* Every minute */
+    check_expr_valid("0 */2 * ? * *");              /* Every even minute */
+    check_expr_valid("0 1/2 * ? * *");              /* Every uneven minute */
+    check_expr_valid("0 */2 * ? * *");              /* Every 2 minutes */
+    check_expr_valid("0 */3 * ? * *");              /* Every 3 minutes */
+    check_expr_valid("0 */4 * ? * *");              /* Every 4 minutes */
+    check_expr_valid("0 */5 * ? * *");              /* Every 5 minutes */
+    check_expr_valid("0 */10 * ? * *");             /* Every 10 minutes */
+    check_expr_valid("0 */15 * ? * *");             /* Every 15 minutes */
+    check_expr_valid("0 */30 * ? * *");             /* Every 30 minutes */
+    check_expr_valid("0 15,30,45 * ? * *");         /* Every hour at minutes 15, 30 and 45 */
+    check_expr_valid("0 0 * ? * *");                /* Every hour */
+    check_expr_valid("0 0 */2 ? * *");              /* Every hour */
+    check_expr_valid("0 0 0/2 ? * *");              /* Every even hour */
+    check_expr_valid("0 0 1/2 ? * *");              /* Every uneven hour */
+    check_expr_valid("0 0 */3 ? * *");              /* Every three hours */
+    check_expr_valid("0 0 */4 ? * *");              /* Every four hours */
+    check_expr_valid("0 0 */6 ? * *");              /* Every six hours */
+    check_expr_valid("0 0 */8 ? * *");              /* Every eight hours */
+    check_expr_valid("0 0 */12 ? * *");             /* Every twelve hours */
+    check_expr_valid("0 0 0 * * ?");                /* Every day at midnight - 12am */
+    check_expr_valid("0 0 1 * * ?");                /* Every day at 1am */
+    check_expr_valid("0 0 6 * * ?");                /* Every day at 6am */
+    check_expr_valid("0 0 12 * * ?");               /* Every day at noon - 12pm */
+    check_expr_valid("0 0 12 * * ?");               /* Every day at noon - 12pm */
+    check_expr_valid("0 0 12 ? * SUN");             /* Every Sunday at noon */
+    check_expr_valid("0 0 12 ? * MON");             /* Every Monday at noon */
+    check_expr_valid("0 0 12 ? * TUE");             /* Every Tuesday at noon */
+    check_expr_valid("0 0 12 ? * WED");             /* Every Wednesday at noon */
+    check_expr_valid("0 0 12 ? * THU");             /* Every Thursday at noon */
+    check_expr_valid("0 0 12 ? * FRI");             /* Every Friday at noon */
+    check_expr_valid("0 0 12 ? * SAT");             /* Every Saturday at noon */
+    check_expr_valid("0 0 12 ? * MON-FRI");         /* Every Weekday at noon */
+    check_expr_valid("0 0 12 ? * SUN,SAT");         /* Every Saturday and Sunday at noon */
+    check_expr_valid("0 0 12 */7 * ?");             /* Every 7 days at noon */
+    check_expr_valid("0 0 12 1 * ?");               /* Every month on the 1st, at noon */
+    check_expr_valid("0 0 12 2 * ?");               /* Every month on the 2nd, at noon */
+    check_expr_valid("0 0 12 15 * ?");              /* Every month on the 15th, at noon */
+    check_expr_valid("0 0 12 1/2 * ?");             /* Every 2 days starting on the 1st of the month, at noon */
+    check_expr_valid("0 0 12 1/4 * ?");             /* Every 4 days staring on the 1st of the month, at noon */
+    check_expr_valid("0 0 12 L * ?");               /* Every month on the last day of the month, at noon */
+    check_expr_valid("0 0 12 L-2 * ?");             /* Every month on the second to last day of the month, at noon */
+    check_expr_valid("0 0 12 LW * ?");              /* Every month on the last weekday, at noon */
+
+    /*check_expr_valid("0 0 12 1L * ?"); */             /* Every month on the last Sunday, at noon */
+    /*check_expr_valid("0 0 12 2L * ?"); */             /* Every month on the last Monday, at noon */
+    /*check_expr_valid("0 0 12 6L * ?"); */             /* Every month on the last Friday, at noon */
+
+    check_expr_valid("0 0 12 ? * 1L");              /* Every month on the last Sunday, at noon */
+    check_expr_valid("0 0 12 ? * 2L");              /* Every month on the last Monday, at noon */
+    check_expr_valid("0 0 12 ? * 6L");              /* Every month on the last Friday, at noon */
+
+    check_expr_valid("0 0 12 1W * ?");              /* Every month on the nearest Weekday to the 1st of the month, at noon */
+    check_expr_valid("0 0 12 15W * ?");             /* Every month on the nearest Weekday to the 15th of the month, at noon */
+    check_expr_valid("0 0 12 ? * 2#1");             /* Every month on the first Monday of the Month, at noon */
+    check_expr_valid("0 0 12 ? * 6#1");             /* Every month on the first Friday of the Month, at noon */
+    check_expr_valid("0 0 12 ? * 2#2");             /* Every month on the second Monday of the Month, at noon */
+    check_expr_valid("0 0 12 ? * 5#3");             /* Every month on the third Thursday of the Month, at noon - 12pm */
+    check_expr_valid("0 0 12 ? JAN *");             /* Every day at noon in January only */
+    check_expr_valid("0 0 12 ? JUN *");             /* Every day at noon in June only */
+    check_expr_valid("0 0 12 ? JAN,JUN *");         /* Every day at noon in January and June */
+    check_expr_valid("0 0 12 ? DEC *");             /* Every day at noon in December only */
+    check_expr_valid("0 0 12 ? JAN,FEB,MAR,APR *"); /* Every day at noon in January, February, March and April */
+    check_expr_valid("0 0 12 ? 9-12 *");            /* Every day at noon between September and December */
 }
 
 void test_bits() {
