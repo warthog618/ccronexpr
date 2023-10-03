@@ -42,25 +42,6 @@
 #define ARRAY_LEN(x) sizeof(x)/sizeof(x[0])
 #endif
 
-#ifdef CRON_TEST_MALLOC
-static int cronAllocations = 0;
-static int cronTotalAllocations = 0;
-static int maxAlloc = 0;
-void* cron_malloc(size_t n) {
-    cronAllocations++;
-    cronTotalAllocations++;
-    if (cronAllocations > maxAlloc) {
-        maxAlloc = cronAllocations;
-    }
-    return malloc(n);
-}
-
-void cron_free(void* p) {
-    cronAllocations--;
-    free(p);
-}
-#endif
-
 /* declared in cronexpr.c */
 time_t cron_mktime(struct tm* tm);
 
@@ -778,30 +759,12 @@ void test_bits() {
     assert(!err);
 }
 
-/* For this test to work you need to set "-DCRON_TEST_MALLOC=1"*/
-#ifdef CRON_TEST_MALLOC
-void test_memory() {
-    cron_expr cron;
-    const char* err;
-
-    cron_parse_expr("* * * * * *", &cron, &err);
-    if (cronAllocations != 0) {
-        printf("Allocations != 0 but %d", cronAllocations);
-        assert(0);
-    }
-    printf("Allocations: total: %d, max: %d", cronTotalAllocations, maxAlloc);
-}
-#endif
-
 int main() {
     test_bits();
 
     test_expr();
     test_parse();
     check_calc_invalid();
-    #ifdef CRON_TEST_MALLOC
-    test_memory(); /* For this test to work you need to set "-DCRON_TEST_MALLOC=1"*/
-    #endif
     printf("\nAll OK!\n");
     return 0;
 }

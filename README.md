@@ -164,24 +164,24 @@ Usage example
 Compilation and tests run examples
 ----------------------------------
 
-    gcc ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -DCRON_TEST_MALLOC -o a.out && ./a.out
-    g++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -o a.out && ./a.out
-    g++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
+    gcc ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -o a.out && ./a.out
+    g++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -o a.out && ./a.out
+    g++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
 
-    clang ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -DCRON_TEST_MALLOC -o a.out && ./a.out
-    clang++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -o a.out && ./a.out
-    clang++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
+    clang ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -o a.out && ./a.out
+    clang++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -o a.out && ./a.out
+    clang++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
 
     cl ccronexpr.c ccronexpr_test.c /W4 /D_CRT_SECURE_NO_WARNINGS && ccronexpr.exe
 
 
-    gcc ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c89 -DCRON_TEST_MALLOC -o a.out && ./a.out
-    g++ ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -o a.out && ./a.out
-    g++ ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
+    gcc ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c89 -o a.out && ./a.out
+    g++ ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c++11 -o a.out && ./a.out
+    g++ ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c++11 -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
 
-    clang ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c89 -DCRON_TEST_MALLOC -o a.out && ./a.out
-    clang++ ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -o a.out && ./a.out
-    clang++ ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c++11 -DCRON_TEST_MALLOC -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
+    clang ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c89 -o a.out && ./a.out
+    clang++ ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c++11 -o a.out && ./a.out
+    clang++ ccronexpr.c supertinycron.c -I. -Wall -Wextra -std=c++11 -DCRON_COMPILE_AS_CXX -o a.out && ./a.out
 
     cl ccronexpr.c supertinycron.c /W4 /D_CRT_SECURE_NO_WARNINGS && supertinycron.exe
 
@@ -205,7 +205,7 @@ processed as UTC (GMT) dates without timezone information.
 
 To use local dates (current system timezone) instead of GMT compile with `-DCRON_USE_LOCAL_TIME`, example:
 
-    gcc -DCRON_USE_LOCAL_TIME ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -DCRON_TEST_MALLOC -o a.out && TZ="America/Toronto" ./a.out
+    gcc -DCRON_USE_LOCAL_TIME ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -o a.out && TZ="America/Toronto" ./a.out
 
 License information
 -------------------

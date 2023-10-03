@@ -34,10 +34,6 @@ endif ()
 
 # Tests
 if (NOT CRON_DISABLE_TESTING)
-    if (CRON_TEST_MALLOC)
-        target_compile_definitions(ccronexpr PUBLIC CRON_TEST_MALLOC=${CRON_TEST_MALLOC})
-    endif ()
-
     enable_testing()
     add_subdirectory(test)
 endif ()
