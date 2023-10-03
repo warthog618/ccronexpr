@@ -364,14 +364,14 @@ static void token_next(ParserContext* context) {
         context->type = T_NUMBER;
     } else {
         rest: switch (*context->input) {
-            case '*':  context->type = T_ASTERISK; break;
-            case '?':  context->type = T_QUESTION; break;
-            case ',':  context->type = T_COMMA;    break;
-            case '/':  context->type = T_SLASH;    break;
-            case 'L':  context->type = T_L;        break;
-            case 'W':  context->type = T_W;        break;
-            case '#':  context->type = T_HASH;     break;
-            case '-':  context->type = T_MINUS;    break;
+        case '*':  context->type = T_ASTERISK; break;
+        case '?':  context->type = T_QUESTION; break;
+        case ',':  context->type = T_COMMA;    break;
+        case '/':  context->type = T_SLASH;    break;
+        case 'L':  context->type = T_L;        break;
+        case 'W':  context->type = T_W;        break;
+        case '#':  context->type = T_HASH;     break;
+        case '-':  context->type = T_MINUS;    break;
         }
         ++context->input;
     }
@@ -381,32 +381,32 @@ static void token_next(ParserContext* context) {
 static int Number(ParserContext* context) {
     int value = 0;
     switch (context->type) {
-        case T_MINUS:
+    case T_MINUS:
+        token_next(context);
+        if (T_NUMBER == context->type) {
+            value = -context->value;
             token_next(context);
-            if (T_NUMBER == context->type) {
-                value = -context->value;
-                token_next(context);
-            } else PARSE_ERROR("Number '-' follows with number");
-            break;
-        case T_NUMBER: value = context->value; token_next(context); break;
-        default: PARSE_ERROR("Number - error");
+        } else PARSE_ERROR("Number '-' follows with number");
+        break;
+    case T_NUMBER: value = context->value; token_next(context); break;
+    default: PARSE_ERROR("Number - error");
     }
     error: return value;
 }
 
 static int Frequency(ParserContext* context, int delta, int* to, int range) {
     switch (context->type) {
-        case T_SLASH:
+    case T_SLASH:
+        token_next(context);
+        if (T_NUMBER == context->type) {
+            delta = context->value;
+            if (delta < 1) PARSE_ERROR("Frequency - needs to be at least 1");
+            if (!range) *to = context->max - 1;
             token_next(context);
-            if (T_NUMBER == context->type) {
-                delta = context->value;
-                if (delta < 1) PARSE_ERROR("Frequency - needs to be at least 1");
-                if (!range) *to = context->max - 1;
-                token_next(context);
-            } else PARSE_ERROR("Frequency - '/' follows with number");
-            break;
-        case T_COMMA: case T_WS: case T_EOF: break;
-        default: PARSE_ERROR("Frequency - error");
+        } else PARSE_ERROR("Frequency - '/' follows with number");
+        break;
+    case T_COMMA: case T_WS: case T_EOF: break;
+    default: PARSE_ERROR("Frequency - error");
     }
     error: return delta;
 }
@@ -414,39 +414,39 @@ static int Frequency(ParserContext* context, int delta, int* to, int range) {
 static int Range(ParserContext* context, int* from, int to) {
     int i;
     switch (context->type) {
-        case T_HASH:
-            if (CRON_CF_DAY_OF_WEEK == context->field_type) {
-                token_next(context);
-                if (*context->target->day_in_month)
-                    PARSE_ERROR("Nth-day - support for specifying multiple '#' segments is not implemented");
-                *context->target->day_in_month = (int8_t)Number(context);
-                if (*context->target->day_in_month > 5 || *context->target->day_in_month < -5)
-                    PARSE_ERROR("Nth-day - '#' can follow only with -5..5");
-            } else PARSE_ERROR("Nth-day - '#' allowed only for day of week");
-            break;
-        case T_MINUS:
+    case T_HASH:
+        if (CRON_CF_DAY_OF_WEEK == context->field_type) {
             token_next(context);
-            if (T_NUMBER == context->type) {
-                to = context->value;
-                token_next(context);
-            } else PARSE_ERROR("Range '-' follows with number");
-            break;
-        case T_W:
-            *context->target->day_in_month = (int8_t)to;
-            *from = context->min;
-            for (i = 1; i <= 5; i++) cron_set_bit(context->target->days_of_week, i);
-            cron_set_bit(context->target->flags, 2);
-            to = context->max - 1;
+            if (*context->target->day_in_month)
+                PARSE_ERROR("Nth-day - support for specifying multiple '#' segments is not implemented");
+            *context->target->day_in_month = (int8_t)Number(context);
+            if (*context->target->day_in_month > 5 || *context->target->day_in_month < -5)
+                PARSE_ERROR("Nth-day - '#' can follow only with -5..5");
+        } else PARSE_ERROR("Nth-day - '#' allowed only for day of week");
+        break;
+    case T_MINUS:
+        token_next(context);
+        if (T_NUMBER == context->type) {
+            to = context->value;
             token_next(context);
-            break;
-        case T_L:
-            if (CRON_CF_DAY_OF_WEEK == context->field_type) {
-                *context->target->day_in_month = -1;
-                token_next(context);
-            } else PARSE_ERROR("Range - 'L' allowed only for day of week");
-            break;
-        case T_WS: case T_SLASH: case T_COMMA: case T_EOF: break;
-        default: PARSE_ERROR("Range - error");
+        } else PARSE_ERROR("Range '-' follows with number");
+        break;
+    case T_W:
+        *context->target->day_in_month = (int8_t)to;
+        *from = context->min;
+        for (i = 1; i <= 5; i++) cron_set_bit(context->target->days_of_week, i);
+        cron_set_bit(context->target->flags, 2);
+        to = context->max - 1;
+        token_next(context);
+        break;
+    case T_L:
+        if (CRON_CF_DAY_OF_WEEK == context->field_type) {
+            *context->target->day_in_month = -1;
+            token_next(context);
+        } else PARSE_ERROR("Range - 'L' allowed only for day of week");
+        break;
+    case T_WS: case T_SLASH: case T_COMMA: case T_EOF: break;
+    default: PARSE_ERROR("Range - error");
     }
     error: return to;
 }
@@ -454,49 +454,49 @@ static int Range(ParserContext* context, int* from, int to) {
 static void Segment(ParserContext* context) {
     int i, from = context->min, to = context->max - 1, delta = 1, leap = 0;
     start: switch (context->type) {
-        case T_ASTERISK: token_next(context); delta = Frequency(context, delta, &to, 0); break;
-        case T_NUMBER:
-            from = context->value;
-            token_next(context);
-            to = Range(context, &from, from);
-            if (context->err) goto error;
-            delta = Frequency(context, delta, &to, from != to);
-            break;
-        case T_L:
-            token_next(context);
-            switch (context->field_type) {
-                case CRON_CF_SECOND: if (!leap) context->max += CRON_MAX_LEAP_SECONDS; leap = 1; goto start;
-                case CRON_CF_DAY_OF_MONTH:
-                    *context->target->day_in_month = -1;
-                    switch (context->type) {
-                        case T_MINUS: case T_NUMBER: *context->target->day_in_month += (int8_t)Number(context); break;
-                        case T_W:
-                            if (CRON_CF_DAY_OF_MONTH == context->field_type) {
-                                token_next(context);
-                                for (i = 1; i <= 5; i++) cron_set_bit(context->target->days_of_week, i);
-                                cron_set_bit(context->target->flags, 1);
-                                context->fix_dow = 1;
-                                goto done;
-                            } else PARSE_ERROR("Offset - 'W' allowed only for day of month");
-                        case T_COMMA: case T_WS: case T_EOF: break;
-                        default: PARSE_ERROR("Offset - error");
-                    }
-                    /* Note 0..6 and not 1..7, see end of set_days_of_week. */
-                    for (i = 0; i <= 6; i++) cron_set_bit(context->target->days_of_week, i);
-                    cron_set_bit(context->target->flags, 0);
-                    context->fix_dow = 1;
-                    break;
-                case CRON_CF_DAY_OF_WEEK: from = to = 0; break;
-                default: PARSE_ERROR("Segment 'L' allowed only for day of month and leap seconds")
-            }
-            break;
-        case T_W:
-            for (i = 1; i <= 5; i++) cron_set_bit(context->target->days_of_week, i);
-            token_next(context);
-            context->fix_dow = 1;
-            break;
-        case T_QUESTION: token_next(context); break;
-        default: PARSE_ERROR("Segment - error");
+    case T_ASTERISK: token_next(context); delta = Frequency(context, delta, &to, 0); break;
+    case T_NUMBER:
+        from = context->value;
+        token_next(context);
+        to = Range(context, &from, from);
+        if (context->err) goto error;
+        delta = Frequency(context, delta, &to, from != to);
+        break;
+    case T_L:
+        token_next(context);
+        switch (context->field_type) {
+            case CRON_CF_SECOND: if (!leap) context->max += CRON_MAX_LEAP_SECONDS; leap = 1; goto start;
+            case CRON_CF_DAY_OF_MONTH:
+                *context->target->day_in_month = -1;
+                switch (context->type) {
+                case T_MINUS: case T_NUMBER: *context->target->day_in_month += (int8_t)Number(context); break;
+                case T_W:
+                    if (CRON_CF_DAY_OF_MONTH == context->field_type) {
+                        token_next(context);
+                        for (i = 1; i <= 5; i++) cron_set_bit(context->target->days_of_week, i);
+                        cron_set_bit(context->target->flags, 1);
+                        context->fix_dow = 1;
+                        goto done;
+                    } else PARSE_ERROR("Offset - 'W' allowed only for day of month");
+                case T_COMMA: case T_WS: case T_EOF: break;
+                default: PARSE_ERROR("Offset - error");
+                }
+                /* Note 0..6 and not 1..7, see end of set_days_of_week. */
+                for (i = 0; i <= 6; i++) cron_set_bit(context->target->days_of_week, i);
+                cron_set_bit(context->target->flags, 0);
+                context->fix_dow = 1;
+                break;
+            case CRON_CF_DAY_OF_WEEK: from = to = 0; break;
+            default: PARSE_ERROR("Segment 'L' allowed only for day of month and leap seconds")
+        }
+        break;
+    case T_W:
+        for (i = 1; i <= 5; i++) cron_set_bit(context->target->days_of_week, i);
+        token_next(context);
+        context->fix_dow = 1;
+        break;
+    case T_QUESTION: token_next(context); break;
+    default: PARSE_ERROR("Segment - error");
     }
     done: if (context->err) goto error;
     if (CRON_CF_DAY_OF_WEEK == context->field_type && context->fix_dow) return;
@@ -518,9 +518,9 @@ static void Field(ParserContext* context) {
     Segment(context);
     if (context->err) goto error;
     switch (context->type) {
-        case T_COMMA: token_next(context); Field(context); break;
-        case T_WS: case T_EOF: break;
-        default: PARSE_ERROR("FieldRest - error");
+    case T_COMMA: token_next(context); Field(context); break;
+    case T_WS: case T_EOF: break;
+    default: PARSE_ERROR("FieldRest - error");
     }
     error: return;
 }
