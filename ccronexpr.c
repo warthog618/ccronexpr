@@ -799,7 +799,7 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
     *error = NULL;
     if (!expression) CRON_ERROR("Invalid NULL expression");
     if (!target)     CRON_ERROR("Invalid NULL target");
-    if ('@' == expression[0]) {
+    if ('@' == *expression) {
         expression++;
         if (!strcmp("annually", expression) || !strcmp("yearly", expression))     expression = "0 0 0 1 1 *";
         else if (!strcmp("monthly", expression))                                  expression = "0 0 0 1 * *";
