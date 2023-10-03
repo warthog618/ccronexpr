@@ -45,18 +45,6 @@ extern "C" {
  * Parsed cron expression
  */
 
-/* DoM      *       DoW
- * L        *       *
- * L-15     *       *
- * LW       *       *
- * 15W      *       *
- * W        *       *
- * *        *       L
- * *        *       6L
- * *        *       6#3
- * *        *       6#-3
- */
-
 #define EXPR_YEARS_LENGTH 29
 
 typedef struct {
@@ -64,27 +52,15 @@ typedef struct {
     uint8_t minutes[8];
     uint8_t hours[3];
     uint8_t days_of_week[1];
-    /* L - last day
-     * 6L - last weekday (friday) of month
-     * 6#3 - nth weekday (friday) of month
-     * 6#-3 - last nth weekday (friday) of month
-     * */
-    /* Extra empty byte for longer months. */
     uint8_t days_of_month[4];
-    /* L - last day
-     * L-15 - last day
-     * LW - last week day
-     * LW-3 - last week day
-     * W - week day,
-     * W-3 - week day,
-     * 15W - nearest weekday to 15th
-     * */
     int8_t  day_in_month[1];
     uint8_t flags[1];
-    /* 0 last day of the month
-       1 last weekday of the month
-       2 closest weekday to day in month
-    */
+    /**
+     * Flags:
+     * 0 last day of the month
+     * 1 last weekday of the month
+     * 2 closest weekday to day in month
+     */
     uint8_t years[EXPR_YEARS_LENGTH];
     uint8_t months[2];
 } cron_expr;

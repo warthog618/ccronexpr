@@ -314,6 +314,19 @@ static int closest_weekday(int day_of_month, int month, int year) {
     return cron_time(&t, &cal)->tm_mday;
 }
 
+static int reset_all(int (*fn)(struct tm* calendar, int field), struct tm* calendar, uint8_t* fields) {
+    int i;
+    int res = 0;
+    if (!calendar || !fields) return 1;
+    for (i = 0; i < CRON_CF_ARR_LEN; i++) if (cron_get_bit(fields, i)) {
+        res = fn(calendar, i);
+        if (0 != res) return res;
+    }
+    return 0;
+}
+#define reset_all_min(calendar, fields) reset_all(reset_min, calendar, fields);
+#define reset_all_max(calendar, fields) reset_all(reset_max, calendar, fields);
+
 /**
  * Parser.
  */
@@ -562,24 +575,9 @@ static void Fields(Context* context, int len) {
         FieldWrapper(context, CRON_CF_YEAR, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS, context->target->years);
     }
     return;
-    compare_error:
-    context->err = "Fields - expected whitespace separator";
+    compare_error: PARSE_ERROR("Fields - expected whitespace separator");
     error: return;
 }
-
-static int reset_all(int (*fn)(struct tm* calendar, int field), struct tm* calendar, uint8_t* fields) {
-    int i;
-    int res = 0;
-    if (!calendar || !fields) return 1;
-    for (i = 0; i < CRON_CF_ARR_LEN; i++) if (cron_get_bit(fields, i)) {
-        res = fn(calendar, i);
-        if (0 != res) return res;
-    }
-    return 0;
-}
-
-#define reset_all_min(calendar, fields) reset_all(reset_min, calendar, fields);
-#define reset_all_max(calendar, fields) reset_all(reset_max, calendar, fields);
 
 /**
  * Search the bits provided for the next set bit after the value provided,
@@ -605,10 +603,7 @@ static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* c
         if (err) goto return_error;
     }
     return next_value;
-
-    return_error:
-    *res_out = 1;
-    return 0;
+    return_error: *res_out = 1; return 0;
 }
 
 /**
@@ -635,10 +630,7 @@ static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* c
         if (err) goto return_error;
     }
     return next_value;
-
-    return_error:
-    *res_out = 1;
-    return 0;
+    return_error: *res_out = 1; return 0;
 }
 
 static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* changed) {
@@ -693,10 +685,7 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_
         if (offset > 0) reset_all_min(calendar, resets) else reset_all_max(calendar, resets);
     }
     return day_of_month;
-
-    return_error:
-    *res_out = 1;
-    return 0;
+    return_error: *res_out = 1; return 0;
 }
 
 static int do_nextprev(
@@ -801,21 +790,15 @@ static time_t cron(int (*find)(uint8_t* bits, int max, int value, int offset, st
     return cron_mktime(calendar);
 }
 
+#define CRON_ERROR(message) { *error = message; goto error; }
 void cron_parse_expr(const char* expression, cron_expr* target, const char** error) {
     const char* err_local;
     int len = 0;
     Context context;
     if (!error) error = &err_local;
     *error = NULL;
-    if (!expression) {
-        *error = "Invalid NULL expression";
-        goto return_res;
-    }
-    if (!target) {
-        *error = "Invalid NULL target";
-        goto return_res;
-    }
-
+    if (!expression) CRON_ERROR("Invalid NULL expression");
+    if (!target)     CRON_ERROR("Invalid NULL target");
     if ('@' == expression[0]) {
         expression++;
         if (!strcmp("annually", expression) || !strcmp("yearly", expression))     expression = "0 0 0 1 1 *";
@@ -825,26 +808,17 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
         else if (!strcmp("hourly", expression))                                   expression = "0 0 * * * *";
         else if (!strcmp("minutely", expression))                                 expression = "0 * * * * *";
         else if (!strcmp("secondly", expression))                                 expression = "* * * * * * *";
-        else if (!strcmp("reboot", expression)) {
-            *error = "@reboot not implemented";
-            goto return_res;
-        }
+        else if (!strcmp("reboot", expression)) CRON_ERROR("@reboot not implemented");
     }
-
     len = count_fields(expression, ' ');
-    if (len < 5 || len > 7) {
-        *error = "Invalid number of fields, expression must consist of 5-7 fields";
-        goto return_res;
-    }
+    if (len < 5 || len > 7) CRON_ERROR("Invalid number of fields, expression must consist of 5-7 fields");
     memset(target, 0, sizeof(*target));
     memset(&context, 0, sizeof(context));
     context.input = expression;
     context.target = target;
     Fields(&context, len);
     *error = context.err;
-    goto return_res;
-
-    return_res: return;
+    error: return;
 }
 
 time_t cron_next(cron_expr* expr, time_t date) { return cron(find_next, expr, date, 1); }
