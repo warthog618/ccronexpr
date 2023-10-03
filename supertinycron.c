@@ -15,31 +15,7 @@
     #define VERSION "dev-build"
 #endif
 
-#ifdef CRON_TEST_MALLOC
-static int cronAllocations = 0;
-static int cronTotalAllocations = 0;
-static int maxAlloc = 0;
-void* cron_malloc(size_t n) {
-    cronAllocations++;
-    cronTotalAllocations++;
-    if (cronAllocations > maxAlloc) {
-        maxAlloc = cronAllocations;
-    }
-    return malloc(n);
-}
-
-void cron_free(void* p) {
-    cronAllocations--;
-    free(p);
-}
-#endif
-
-typedef struct {
-    char* shell;
-    char* cmd;
-    char* schedule;
-    int verbose;
-} TinyCronJob;
+typedef struct { char *shell, *cmd, *schedule; int verbose; } TinyCronJob;
 
 void output(const char *msg) {
     printf("[supertinycron] %s\n", msg);
@@ -47,7 +23,7 @@ void output(const char *msg) {
 
 void sigchld_handler(int signo) {
     (void) signo;
-    while (waitpid(-1, NULL, WNOHANG) > 0);
+    /*while (waitpid(-1, NULL, WNOHANG) > 0);*/
 }
 
 void sig_handler(int signo) {
@@ -114,24 +90,17 @@ int cron_system(const char *shell, const char *command) {
             perror("waitpid");
             return -1;
         }
-        if (WIFEXITED(status)) {
-            return WEXITSTATUS(status);
-        } else if (WIFSIGNALED(status)) {
-            return -WTERMSIG(status);
-        }
+        if (WIFEXITED(status)) return WEXITSTATUS(status);
+        else if (WIFSIGNALED(status)) return -WTERMSIG(status);
         return -1;
     }
 }
 
 TinyCronJob optsFromEnv() {
     TinyCronJob opts = {0, 0, 0, 0};
-    if (getenv("TINYCRON_VERBOSE") != NULL) {
-        opts.verbose = 1;
-    }
+    if (getenv("TINYCRON_VERBOSE") != NULL) opts.verbose = 1;
     opts.shell = getenv("SHELL");
-    if (!opts.shell) {
-        opts.shell = (char *)"/bin/sh"; 
-    }
+    if (!opts.shell) opts.shell = (char *)"/bin/sh";
     return opts;
 }
 
@@ -141,9 +110,8 @@ void usage() {
 }
 
 void message(const char *err, const char *msg) {
-    if (strlen(msg) == 0) {
-        output(err);
-    } else {
+    if (strlen(msg) == 0) output(err);
+    else {
         char errMsg[512];
         snprintf(errMsg, sizeof(errMsg), "%s %s", msg, err);
         output(errMsg);
@@ -162,16 +130,13 @@ void exitOnErr(int err, const char *msg) {
 }
 
 void run(TinyCronJob *job) {
-    if (job->verbose) {
-        message(job->cmd, "running job:");
-    }
+    if (job->verbose) message(job->cmd, "running job:");
 
     messageInt(cron_system(job->shell, job->cmd), "job failed:");
 }
 
 int nap(TinyCronJob *job) {
-    time_t current_time = time(NULL);
-    time_t next_run;
+    time_t current_time = time(NULL), next_run;
 
     cron_expr expr;
     const char* err = NULL;
@@ -221,23 +186,16 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, sig_handler);
     signal(SIGINT,  sig_handler);
 
-    if (argc < 2) {
-        usage();
-    }
+    if (argc < 2 || strcmp(argv[1], "help") == 0) usage();
 
     if (strcmp(argv[1], "version") == 0) {
         printf("supertinycron version %s\n", VERSION);
         return EXIT_SUCCESS;
     }
 
-    if (strcmp(argv[1], "help") == 0) {
-        usage();
-    }
-
     TinyCronJob job = optsFromEnv();
 
-    int line_len = 0;
-    int i;
+    int i, line_len = 0;
     for (i = 1; i < argc; i++) {
         line_len += strlen(argv[i]);
     }
@@ -258,9 +216,7 @@ int main(int argc, char *argv[]) {
         strcat(line, argv[i]);
     }
 
-    if (job.verbose) {
-        message(line, "line");
-    }
+    if (job.verbose) message(line, "line");
 
     parse_line(line, &job, 7);
 
