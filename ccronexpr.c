@@ -610,32 +610,32 @@ static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* c
     return_error: *res_out = 1; return 0;
 }
 
-static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* changed) {
-    static int day;
-    if (*changed) {
+static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* day) {
+    int tmp_day = *day;
+    if (tmp_day < 0) {
         if (*flags) {
-            if      (*flags & 1)        day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
-            else if (*flags & 2)        day = last_weekday_of_month(calendar->tm_mon, calendar->tm_year);
-            else if (*flags & 4)        day = closest_weekday(*day_in_month-1, calendar->tm_mon, calendar->tm_year);
-        } else if   (*day_in_month < 0) day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
-        *changed = 0;
+            if      (*flags & 1)        tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+            else if (*flags & 2)        tmp_day = last_weekday_of_month(calendar->tm_mon, calendar->tm_year);
+            else if (*flags & 4)        tmp_day = closest_weekday(*day_in_month-1, calendar->tm_mon, calendar->tm_year);
+        } else if   (*day_in_month < 0) tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+        *day = tmp_day;
     }
     if (!cron_get_bit(days_of_month, dom)) return 1;
     if (!cron_get_bit(days_of_week,  dow)) return 1;
     if (*flags) {
-        if ((*flags & 3) && dom != day+1+*day_in_month) return 1;
-        if ((*flags & 4) && dom != day)                 return 1;
+        if ((*flags & 3) && dom != tmp_day+1+*day_in_month) return 1;
+        if ((*flags & 4) && dom != tmp_day)                 return 1;
     } else {
-        if (*day_in_month < 0 && (dom < day+WEEK_DAYS**day_in_month+1 || dom >= day+WEEK_DAYS*(*day_in_month+1)+1)) return 1;
-        if (*day_in_month > 0 && (dom < WEEK_DAYS*(*day_in_month-1)+1 || dom >= WEEK_DAYS**day_in_month+1))         return 1;
+        if (*day_in_month < 0 && (dom < tmp_day+WEEK_DAYS**day_in_month+1 || dom >= tmp_day+WEEK_DAYS*(*day_in_month+1)+1)) return 1;
+        if (*day_in_month > 0 && (dom < WEEK_DAYS*(*day_in_month-1)+1     || dom >= WEEK_DAYS**day_in_month+1))             return 1;
     }
     return 0;
 }
 
 static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, uint8_t* resets, int* res_out, int offset) {
-    int err, changed = 1, year = calendar->tm_year, month = calendar->tm_mon;
+    int err, day = -1, year = calendar->tm_year, month = calendar->tm_mon;
     unsigned int count = 0, max = 366;
-    while (find_day_condition(calendar, days_of_month, day_in_month, dom, days_of_week, dow, flags, &changed) && count++ < max) {
+    while (find_day_condition(calendar, days_of_month, day_in_month, dom, days_of_week, dow, flags, &day) && count++ < max) {
         err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, offset);
         if (err) goto return_error;
         dom = calendar->tm_mday;
@@ -643,11 +643,11 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_
         if (year != calendar->tm_year) {
             year = calendar->tm_year;
             /* This should not be needed unless there is as single day month in libc. */
-            changed = 1;
+            day = -1;
         }
         if (month != calendar->tm_mon) {
             month = calendar->tm_mon;
-            changed = 1;
+            day = -1;
         }
         if (offset > 0) reset_all_min(calendar, resets) else reset_all_max(calendar, resets);
     }
@@ -696,12 +696,10 @@ static int do_nextprev(
             continue; 
         }
 
-        if (!cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) {
-            value = calendar->tm_year;
-            update_value = find(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
-            if (0 != res) break;
-            if (value == update_value) break;
-        } else break;
+        if (cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) break;
+        value = calendar->tm_year;
+        update_value = find(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
+        if (0 != res || value == update_value) break;
     }
 
     return res;

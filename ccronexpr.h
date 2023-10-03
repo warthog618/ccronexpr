@@ -54,13 +54,13 @@ typedef struct {
     uint8_t days_of_week[1];
     uint8_t days_of_month[4];
     int8_t  day_in_month[1];
-    uint8_t flags[1];
     /**
      * Flags:
      * 0 last day of the month
      * 1 last weekday of the month
      * 2 closest weekday to day in month
      */
+    uint8_t flags[1];
     uint8_t years[EXPR_YEARS_LENGTH];
     uint8_t months[2];
 } cron_expr;
