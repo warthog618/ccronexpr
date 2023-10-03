@@ -162,12 +162,13 @@ struct tm* cron_time(time_t* date, struct tm* out) {
 
 #endif /* CRON_USE_LOCAL_TIME */
 
-/**
- * Functions.
- */
-
-#define GET_BYTE(idx) (uint8_t) (idx / 8)
-#define GET_BIT(idx)  (uint8_t) (idx % 8)
+#define reset_all_min(calendar, fields) reset_all(reset_min, calendar, fields);
+#define reset_all_max(calendar, fields) reset_all(reset_max, calendar, fields);
+#define PARSE_ERROR(message)            { context->err = message; goto error; }
+#define CRON_ERROR(message)             { *error = message; goto error; }
+#define TOKEN_COMPARE(context, token)   if (context->err) goto error; if (token == context->type) token_next(context); else goto compare_error;
+#define GET_BYTE(idx)                   (uint8_t) (idx / 8)
+#define GET_BIT(idx)                    (uint8_t) (idx % 8)
 
 void cron_set_bit(uint8_t* rbyte, int idx) {
     rbyte[GET_BYTE(idx)] |= (uint8_t)(1 << GET_BIT(idx));
@@ -183,26 +184,16 @@ uint8_t cron_get_bit(const uint8_t* rbyte, int idx) {
 
 static int next_set_bit(uint8_t* bits, int max, int from_index, int* notfound) {
     int i;
-    if (!bits) {
-        *notfound = 1;
-        return 0;
-    }
+    if (!bits) goto error;
     for (i = from_index; i < max; i++) if (cron_get_bit(bits, i)) return i;
-    *notfound = 1;
-    return 0;
+    error: *notfound = 1; return 0;
 }
-
-/* https://github.com/staticlibs/ccronexpr/pull/8 */
 
 static int prev_set_bit(uint8_t* bits, int from_index, int to_index, int* notfound) {
     int i;
-    if (!bits) {
-        *notfound = 1;
-        return 0;
-    }
+    if (!bits) goto error;
     for (i = from_index; i >= to_index; i--) if (cron_get_bit(bits, i)) return i;
-    *notfound = 1;
-    return 0;
+    error: *notfound = 1; return 0;
 }
 
 static int* get_field_ptr(struct tm* calendar, int field) {
@@ -324,15 +315,9 @@ static int reset_all(int (*fn)(struct tm* calendar, int field), struct tm* calen
     }
     return 0;
 }
-#define reset_all_min(calendar, fields) reset_all(reset_min, calendar, fields);
-#define reset_all_max(calendar, fields) reset_all(reset_max, calendar, fields);
-
-/**
- * Parser.
- */
 
 typedef enum { T_ASTERISK, T_QUESTION, T_NUMBER, T_COMMA, T_SLASH, T_L, T_W, T_HASH, T_MINUS, T_WS, T_EOF, T_INVALID } TokenType;
-typedef struct { const char* input; TokenType type; cron_expr* target; int field_type, value, min, max, offset, fix_dow; uint8_t* field; char* err; } Context;
+typedef struct { const char* input; TokenType type; cron_expr* target; int field_type, value, min, max, offset, fix_dow; uint8_t* field; char* err; } ParserContext;
 
 static int compare_strings(const char* str1, const char* str2, size_t len) {
     size_t i;
@@ -356,7 +341,7 @@ static int count_fields(const char* str, char del) {
     return (int)count + 1;
 }
 
-static void token_next(Context* context) {
+static void token_next(ParserContext* context) {
     const char *input = context->input;
     context->type = T_INVALID;
     context->value = 0;
@@ -375,8 +360,8 @@ static void token_next(Context* context) {
         context->value = match_ordinals(context->input, DAYS_ARR, CRON_DAYS_ARR_LEN);
         if (context->value < 0) context->value = match_ordinals(context->input, MONTHS_ARR, CRON_MONTHS_ARR_LEN);
         if (context->value < 0) goto rest;
-        context->type = T_NUMBER;
         context->input = input;
+        context->type = T_NUMBER;
     } else {
         rest: switch (*context->input) {
             case '*':  context->type = T_ASTERISK; break;
@@ -393,9 +378,7 @@ static void token_next(Context* context) {
     if (T_INVALID == context->type) context->err = "Invalid token";
 }
 
-#define PARSE_ERROR(message) { context->err = message; goto error; }
-
-static int Number(Context* context) {
+static int Number(ParserContext* context) {
     int value = 0;
     switch (context->type) {
         case T_MINUS:
@@ -411,7 +394,7 @@ static int Number(Context* context) {
     error: return value;
 }
 
-static int Frequency(Context* context, int delta, int* to, int range) {
+static int Frequency(ParserContext* context, int delta, int* to, int range) {
     switch (context->type) {
         case T_SLASH:
             token_next(context);
@@ -428,7 +411,7 @@ static int Frequency(Context* context, int delta, int* to, int range) {
     error: return delta;
 }
 
-static int Range(Context* context, int* from, int to) {
+static int Range(ParserContext* context, int* from, int to) {
     int i;
     switch (context->type) {
         case T_HASH:
@@ -468,7 +451,7 @@ static int Range(Context* context, int* from, int to) {
     error: return to;
 }
 
-static void Segment(Context* context) {
+static void Segment(ParserContext* context) {
     int i, from = context->min, to = context->max - 1, delta = 1, leap = 0;
     start: switch (context->type) {
         case T_ASTERISK: token_next(context); delta = Frequency(context, delta, &to, 0); break;
@@ -531,7 +514,7 @@ static void Segment(Context* context) {
     error: return;
 }
 
-static void Field(Context* context) {
+static void Field(ParserContext* context) {
     Segment(context);
     if (context->err) goto error;
     switch (context->type) {
@@ -542,7 +525,7 @@ static void Field(Context* context) {
     error: return;
 }
 
-static void FieldWrapper(Context* context, int field_type, int min, int max, int offset, uint8_t* field) {
+static void FieldWrapper(ParserContext* context, int field_type, int min, int max, int offset, uint8_t* field) {
     context->field_type = field_type;
     context->min = min;
     context->max = max;
@@ -551,9 +534,7 @@ static void FieldWrapper(Context* context, int field_type, int min, int max, int
     Field(context);
 }
 
-#define TOKEN_COMPARE(context, token) if (context->err) goto error; if (token == context->type) token_next(context); else goto compare_error;
-
-static void Fields(Context* context, int len) {
+static void Fields(ParserContext* context, int len) {
     token_next(context);
     if (len < 6) cron_set_bit(context->target->seconds, 0);
     else {
@@ -584,9 +565,7 @@ static void Fields(Context* context, int len) {
  * and reset the calendar.
  */
 static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out) {
-    int notfound = 0;
-    int err = 0;
-    int next_value = next_set_bit(bits, max, value+offset, &notfound)-offset;
+    int notfound = 0, err = 0, next_value = next_set_bit(bits, max, value+offset, &notfound)-offset;
     /* roll over if needed */
     if (notfound) {
         err = add_to_field(calendar, nextField, 1);
@@ -611,9 +590,7 @@ static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* c
  * and reset the calendar.
  */
 static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out) {
-    int notfound = 0;
-    int err = 0;
-    int next_value = prev_set_bit(bits, value+offset, 0, &notfound)-offset;
+    int notfound = 0, err = 0, next_value = prev_set_bit(bits, value+offset, 0, &notfound)-offset;
     /* roll under if needed */
     if (notfound) {
         err = add_to_field(calendar, nextField, -1);
@@ -633,7 +610,7 @@ static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* c
     return_error: *res_out = 1; return 0;
 }
 
-static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, int* changed) {
+static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* changed) {
     static int day;
     if (*changed) {
         if (*flags) {
@@ -643,36 +620,26 @@ static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_
         } else if   (*day_in_month < 0) day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
         *changed = 0;
     }
-
-    if (!cron_get_bit(days_of_month, day_of_month)) return 1;
-    if (!cron_get_bit(days_of_week, day_of_week))   return 1;
+    if (!cron_get_bit(days_of_month, dom)) return 1;
+    if (!cron_get_bit(days_of_week,  dow)) return 1;
     if (*flags) {
-        if ((*flags & 3) && day_of_month != day+1+*day_in_month) return 1;
-        if ((*flags & 4) && day_of_month != day)                 return 1;
+        if ((*flags & 3) && dom != day+1+*day_in_month) return 1;
+        if ((*flags & 4) && dom != day)                 return 1;
     } else {
-        if (*day_in_month < 0 && 
-                (day_of_month <  day+WEEK_DAYS**day_in_month+1 || 
-                 day_of_month >= day+WEEK_DAYS*(*day_in_month+1)+1)) return 1;
-        if (*day_in_month > 0 && 
-                (day_of_month <  WEEK_DAYS*(*day_in_month-1)+1 || 
-                 day_of_month >= WEEK_DAYS**day_in_month+1))         return 1;
+        if (*day_in_month < 0 && (dom < day+WEEK_DAYS**day_in_month+1 || dom >= day+WEEK_DAYS*(*day_in_month+1)+1)) return 1;
+        if (*day_in_month > 0 && (dom < WEEK_DAYS*(*day_in_month-1)+1 || dom >= WEEK_DAYS**day_in_month+1))         return 1;
     }
     return 0;
 }
 
-static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int day_of_month, uint8_t* days_of_week, int day_of_week, uint8_t* flags, uint8_t* resets, int* res_out, int offset) {
-    int err;
-    unsigned int count = 0;
-    unsigned int max = 366;
-    int changed = 1;
-    int year = calendar->tm_year;
-    int month = calendar->tm_mon;
-    while (find_day_condition(calendar, days_of_month, day_in_month, day_of_month, days_of_week, day_of_week, flags, &changed) && count++ < max) {
+static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, uint8_t* resets, int* res_out, int offset) {
+    int err, changed = 1, year = calendar->tm_year, month = calendar->tm_mon;
+    unsigned int count = 0, max = 366;
+    while (find_day_condition(calendar, days_of_month, day_in_month, dom, days_of_week, dow, flags, &changed) && count++ < max) {
         err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, offset);
-
         if (err) goto return_error;
-        day_of_month = calendar->tm_mday;
-        day_of_week = calendar->tm_wday;
+        dom = calendar->tm_mday;
+        dow = calendar->tm_wday;
         if (year != calendar->tm_year) {
             year = calendar->tm_year;
             /* This should not be needed unless there is as single day month in libc. */
@@ -684,18 +651,15 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_
         }
         if (offset > 0) reset_all_min(calendar, resets) else reset_all_max(calendar, resets);
     }
-    return day_of_month;
+    return dom;
     return_error: *res_out = 1; return 0;
 }
 
 static int do_nextprev(
         int (*find)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out),
         cron_expr* expr, struct tm* calendar, int dot, int offset) {
-    int res = 0;
-    uint8_t resets[1];
-    uint8_t empty_list[1] = {0};
-    int value = 0;
-    int update_value = 0;
+    int res = 0, value = 0, update_value = 0;
+    uint8_t resets[1], empty_list[1] = {0};
 
     for(;;) {
         *resets = 0;
@@ -743,7 +707,9 @@ static int do_nextprev(
     return res;
 }
 
-static time_t cron(int (*find)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out), cron_expr* expr, time_t date, int offset) {
+static time_t cron(
+        int (*find)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out),
+        cron_expr* expr, time_t date, int offset) {
     /*
      The plan:
 
@@ -765,8 +731,7 @@ static time_t cron(int (*find)(uint8_t* bits, int max, int value, int offset, st
     struct tm calval;
     struct tm* calendar;
     int res;
-    time_t original;
-    time_t calculated;
+    time_t original, calculated;
     if (!expr) return CRON_INVALID_INSTANT;
     memset(&calval, 0, sizeof(struct tm));
     calendar = cron_time(&date, &calval);
@@ -790,11 +755,10 @@ static time_t cron(int (*find)(uint8_t* bits, int max, int value, int offset, st
     return cron_mktime(calendar);
 }
 
-#define CRON_ERROR(message) { *error = message; goto error; }
 void cron_parse_expr(const char* expression, cron_expr* target, const char** error) {
     const char* err_local;
     int len = 0;
-    Context context;
+    ParserContext context;
     if (!error) error = &err_local;
     *error = NULL;
     if (!expression) CRON_ERROR("Invalid NULL expression");
