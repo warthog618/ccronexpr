@@ -93,18 +93,25 @@ For example, `6#3` means the third Friday of the month. Note that if you use `#5
 
 Negative nth values are also valid. For instance, `6#-1` is equivalent to `6L`.
 
+#### Known limitation
+
+1. Leap seconds can be prefixed with multiple `L` symbols: `LLLL60` without issuing errors.
+2. Ordinals `JAN`...`DEC` and `SUN`...`SAT` are processed in all fields without issuing errors.
+3. Errors from lexical analyzers are masked by parser errors.
+4. Multiple `#` segments: `1#1,3#3,5#5` are not allowed.
+
 Predefined cron expressions
 ---------------------------
 (Copied from <https://en.wikipedia.org/wiki/Cron#Predefined_scheduling_definitions>, with text modified according to this implementation)
 
     Entry       Description                                                             Equivalent to
-    @annually   Run once a year at midnight in the morning of January 1                 0 0 0 1 1 * *
-    @yearly     Run once a year at midnight in the morning of January 1                 0 0 0 1 1 * *
-    @monthly    Run once a month at midnight in the morning of the first of the month   0 0 0 1 * * *
-    @weekly     Run once a week at midnight in the morning of Sunday                    0 0 0 * * 0 *
-    @daily      Run once a day at midnight                                              0 0 0 * * * *
-    @hourly     Run once an hour at the beginning of the hour                           0 0 * * * * *
-    @minutely   Run once a minute at the beginning of minute                            0 * * * * * *
+    @annually   Run once a year at midnight in the morning of January 1                 0 0 0 1 1 *
+    @yearly     Run once a year at midnight in the morning of January 1                 0 0 0 1 1 *
+    @monthly    Run once a month at midnight in the morning of the first of the month   0 0 0 1 * *
+    @weekly     Run once a week at midnight in the morning of Sunday                    0 0 0 * * 0
+    @daily      Run once a day at midnight                                              0 0 0 * * *
+    @hourly     Run once an hour at the beginning of the hour                           0 0 * * * *
+    @minutely   Run once a minute at the beginning of minute                            0 * * * * *
     @secondly   Run once every second                                                   * * * * * * *
     @reboot     Not supported
 
