@@ -53,6 +53,7 @@ typedef struct {
     uint8_t hours[3];
     uint8_t days_of_week[1];
     uint8_t days_of_month[4];
+    uint8_t months[2];
     int8_t  day_in_month[1];
     /**
      * Flags:
@@ -64,7 +65,6 @@ typedef struct {
 #ifndef CRON_DISABLE_YEARS
     uint8_t years[EXPR_YEARS_LENGTH];
 #endif
-    uint8_t months[2];
 } cron_expr;
 
 /**
