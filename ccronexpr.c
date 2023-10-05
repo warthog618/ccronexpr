@@ -610,32 +610,30 @@ static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* c
     return_error: *res_out = 1; return 0;
 }
 
-static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* day) {
+static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* day) {
     int tmp_day = *day;
     if (tmp_day < 0) {
-        if (*flags) {
-            if      (*flags & 1)        tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
-            else if (*flags & 2)        tmp_day = last_weekday_of_month(calendar->tm_mon, calendar->tm_year);
-            else if (*flags & 4)        tmp_day = closest_weekday(*day_in_month-1, calendar->tm_mon, calendar->tm_year);
-        } else if   (*day_in_month < 0) tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+        if ((!*flags && *dim < 0) || *flags & 1) tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+        else if (*flags & 2)                     tmp_day = last_weekday_of_month(calendar->tm_mon, calendar->tm_year);
+        else if (*flags & 4)                     tmp_day = closest_weekday(*dim-1, calendar->tm_mon, calendar->tm_year);
         *day = tmp_day;
     }
     if (!cron_get_bit(days_of_month, dom)) return 1;
     if (!cron_get_bit(days_of_week,  dow)) return 1;
     if (*flags) {
-        if ((*flags & 3) && dom != tmp_day+1+*day_in_month) return 1;
-        if ((*flags & 4) && dom != tmp_day)                 return 1;
+        if ((*flags & 3) && dom != tmp_day+1+*dim) return 1;
+        if ((*flags & 4) && dom != tmp_day)        return 1;
     } else {
-        if (*day_in_month < 0 && (dom < tmp_day+WEEK_DAYS**day_in_month+1 || dom >= tmp_day+WEEK_DAYS*(*day_in_month+1)+1)) return 1;
-        if (*day_in_month > 0 && (dom < WEEK_DAYS*(*day_in_month-1)+1     || dom >= WEEK_DAYS**day_in_month+1))             return 1;
+        if (*dim < 0 && (dom < tmp_day+WEEK_DAYS**dim+1 || dom >= tmp_day+WEEK_DAYS*(*dim+1)+1)) return 1;
+        if (*dim > 0 && (dom < WEEK_DAYS*(*dim-1)+1     || dom >= WEEK_DAYS**dim+1))             return 1;
     }
     return 0;
 }
 
-static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* day_in_month, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, uint8_t* resets, int* res_out, int offset) {
+static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, uint8_t* resets, int* res_out, int offset) {
     int err, day = -1, year = calendar->tm_year, month = calendar->tm_mon;
     unsigned int count = 0, max = 366;
-    while (find_day_condition(calendar, days_of_month, day_in_month, dom, days_of_week, dow, flags, &day) && count++ < max) {
+    while (find_day_condition(calendar, days_of_month, dim, dom, days_of_week, dow, flags, &day) && count++ < max) {
         err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, offset);
         if (err) goto return_error;
         dom = calendar->tm_mday;
@@ -726,8 +724,7 @@ static time_t cron(
 
      ...
      */
-    struct tm calval;
-    struct tm* calendar;
+    struct tm calval, *calendar;
     int res;
     time_t original, calculated;
     if (!expr) return CRON_INVALID_INSTANT;
