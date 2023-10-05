@@ -550,11 +550,13 @@ static void Fields(ParserContext* context, int len) {
     FieldWrapper(context, CRON_CF_MONTH, 1, CRON_MAX_MONTHS + 1, -1, context->target->months);
     TOKEN_COMPARE(context, T_WS);
     FieldWrapper(context, CRON_CF_DAY_OF_WEEK, 0, CRON_MAX_DAYS_OF_WEEK + 1, 0, context->target->days_of_week);
+#ifndef CRON_DISABLE_YEARS
     if (len < 7) cron_set_bit(context->target->years, EXPR_YEARS_LENGTH*8-1);
     else {
         TOKEN_COMPARE(context, T_WS);
         FieldWrapper(context, CRON_CF_YEAR, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS, context->target->years);
     }
+#endif
     return;
     compare_error: PARSE_ERROR("Fields - expected whitespace separator");
     error: return;
@@ -694,9 +696,11 @@ static int do_nextprev(
             continue; 
         }
 
+#ifndef CRON_DISABLE_YEARS
         if (cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) break;
         value = calendar->tm_year;
         update_value = find(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
+#endif
         if (0 != res || value == update_value) break;
     }
 

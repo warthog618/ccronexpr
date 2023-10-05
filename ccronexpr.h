@@ -61,7 +61,9 @@ typedef struct {
      * 2 closest weekday to day in month
      */
     uint8_t flags[1];
+#ifndef CRON_DISABLE_YEARS
     uint8_t years[EXPR_YEARS_LENGTH];
+#endif
     uint8_t months[2];
 } cron_expr;
 
