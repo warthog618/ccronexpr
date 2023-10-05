@@ -695,13 +695,14 @@ static int do_nextprev(
             }
             continue; 
         }
-
-#ifndef CRON_DISABLE_YEARS
+#ifdef CRON_DISABLE_YEARS
+        else break;
+#else
         if (cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) break;
         value = calendar->tm_year;
         update_value = find(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets, &res);
-#endif
         if (0 != res || value == update_value) break;
+#endif
     }
 
     return res;

@@ -207,6 +207,11 @@ To use local dates (current system timezone) instead of GMT compile with `-DCRON
 
     gcc -DCRON_USE_LOCAL_TIME ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -o a.out && TZ="America/Toronto" ./a.out
 
+Years
+-----
+
+To disable Year field use `-DCRON_DISABLE_YEARS`. This will lower memory footriprint by 29 bytes for `cron_expr`. It will still accept year field, but field will not be validated and it will be triggered every year.
+
 License information
 -------------------
 
