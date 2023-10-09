@@ -104,6 +104,7 @@ time_t cron_next(cron_expr* expr, time_t date);
  */
 time_t cron_prev(cron_expr* expr, time_t date);
 
+char* cron_generate_expr(cron_expr *source, char *buffer, int len, const char **err);
 
 #if defined(__cplusplus) && !defined(CRON_COMPILE_AS_CXX)
 } /* extern "C"*/

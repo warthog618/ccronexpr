@@ -25,6 +25,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "ccronexpr.h"
 
@@ -336,7 +337,7 @@ static int count_fields(const char* str, char del) {
     if (!str) return -1;
     while ((str = strchr(str, del)) != NULL) {
         count++;
-        do str++; while (del == *str); 
+        do str++; while (del == *str);
     }
     return (int)count + 1;
 }
@@ -706,6 +707,98 @@ static int do_nextprev(
     }
 
     return res;
+}
+
+static void generate_field(char *dest, uint8_t *bits, int min, int max, int offset) {
+    char buf[32];
+    int first = 1, from = -1, i, bit;
+
+    for (i = min; i < max; i++) {
+        bit = cron_get_bit(bits, i + offset);
+        if (bit) {
+            if (from == -1) from = i;
+        } else if (from != -1) {
+            if (first) first = 0; else strcat(dest, ",");
+            if (from == i - 1) sprintf(buf, "%d", from);
+            else sprintf(buf, "%d-%d", from, i - 1);
+            strcat(dest, buf);
+            from = -1;
+        }
+    }
+    if (from == i - 1) {
+      if (first) first = 0; else strcat(dest, ",");
+      sprintf(buf, "%d", from);
+      strcat(dest, buf);
+    } else if (from == min && i == max) strcat(dest, "*");
+    else if (from != -1) {
+      if (first) first = 0; else strcat(dest, ",");
+      sprintf(buf, "%d-%d", from, i - 1);
+      strcat(dest, buf);
+    }
+}
+
+char *cron_generate_expr(cron_expr *source, char *buffer, int len, const char **error) {
+    const char* err_local;
+    char buf[32];
+    int i, leap = 0;
+    uint8_t days_of_week = *source->days_of_week;
+    *buffer = '\0';
+    if (!error) error = &err_local;
+
+    if (len > 5) {
+        for (i = CRON_MAX_SECONDS; i < CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS; i++) {
+            if (cron_get_bit(source->seconds, i)) {
+                leap = 1;
+                strcat(buffer, "L");
+                break;
+            }
+        }
+        generate_field(buffer, source->seconds, 0, CRON_MAX_SECONDS + (leap ? CRON_MAX_LEAP_SECONDS : 0), 0);
+        strcat(buffer, " ");
+    }
+    generate_field(buffer, source->minutes, 0, CRON_MAX_MINUTES, 0);
+    strcat(buffer, " ");
+    generate_field(buffer, source->hours, 0, CRON_MAX_HOURS, 0);
+    strcat(buffer, " ");
+    if (cron_get_bit(source->flags, 0)) {
+        strcat(buffer, "L");
+        if (*source->day_in_month < -1) {
+            sprintf(buf, "%d", *source->day_in_month + 1);
+            strcat(buffer, buf);
+        }
+    } else if (cron_get_bit(source->flags, 1)) strcat(buffer, "LW");
+    else if (cron_get_bit(source->flags, 2)) {
+        sprintf(buf, "%dW", *source->day_in_month);
+        strcat(buffer, buf);
+    } else if (*source->day_in_month != 0) strcat(buffer, "?");
+    else generate_field(buffer, source->days_of_month, 1, CRON_MAX_DAYS_OF_MONTH, 0);
+    strcat(buffer, " ");
+    generate_field(buffer, source->months, 1, CRON_MAX_MONTHS + 1, -1);
+    strcat(buffer, " ");
+    if (cron_get_bit(&days_of_week, 0)) {
+        cron_set_bit(&days_of_week, 7);
+        cron_del_bit(&days_of_week, 0);
+    }
+    if (*source->flags) strcat(buffer, "?");
+    else {
+        if (*source->day_in_month != 0) {
+            generate_field(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0);
+            if (*source->day_in_month == -1) strcat(buffer, "L");
+            else {
+                sprintf(buf, "#%d", *source->day_in_month);
+                strcat(buffer, buf);
+            }
+        } else generate_field(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0);
+    }
+    if (len > 6) {
+        if (cron_get_bit(source->years, EXPR_YEARS_LENGTH*8-1)) strcat(buffer, " *");
+        else {
+            strcat(buffer, " ");
+            generate_field(buffer, source->years, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS);
+        }
+    }
+
+    return buffer;
 }
 
 static time_t cron(
