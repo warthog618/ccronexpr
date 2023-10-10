@@ -765,10 +765,7 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
     STRCATC(buffer, " ", 1);
     if (cron_get_bit(source->flags, 0)) {
         STRCATC(buffer, "L", 1);
-        if (*source->day_in_month < -1) {
-            len += sprintf(buf, "%d", *source->day_in_month + 1);
-            STRCATC(buffer, buf, sprintf(buf, "%d", *source->day_in_month + 1));
-        }
+        if (*source->day_in_month < -1) STRCATC(buffer, buf, sprintf(buf, "%d", *source->day_in_month + 1));
     } else if (cron_get_bit(source->flags, 1)) STRCATC(buffer, "LW", 2);
     else if (cron_get_bit(source->flags, 2)) STRCATC(buffer, buf, sprintf(buf, "%dW", *source->day_in_month));
     else if (*source->day_in_month != 0) STRCATC(buffer, "?", 1);
