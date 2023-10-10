@@ -104,7 +104,17 @@ time_t cron_next(cron_expr* expr, time_t date);
  */
 time_t cron_prev(cron_expr* expr, time_t date);
 
-int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int expr_len, const char **err);
+/**
+ * Generate cron expression from cron_expr structure
+ *
+ * @param expr parsed cron expression to use
+ * @param buffer buffer for the result
+ * @param buffer_len maximum length of the buffer
+ * @param expr_len number of cron fields produced
+ * @param error output error message, will be set to string literal
+ * @return used length of the buffer or -1 on error
+ */
+int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int expr_len, const char **error);
 
 #if defined(__cplusplus) && !defined(CRON_COMPILE_AS_CXX)
 } /* extern "C"*/

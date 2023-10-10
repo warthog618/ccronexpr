@@ -709,44 +709,41 @@ static int do_nextprev(
     return res;
 }
 
-#define STRCAT_CHECKED(dest, buf, inc_len) { len += inc_len; if (len > buffer_len) return -1; strcat(dest, buf); }
+#define STRCATC(dest, buf, inc_len) do { len += inc_len; if (len > buffer_len) return -1; strcat(dest, buf); } while (0)
 
 static int generate_field(char *dest, uint8_t *bits, int min, int max, int offset, int buffer_len) {
     char buf[32];
-    int first = 1, from = -1, i, bit;
-    int len = 0;
+    int first = 1, from = -1, i, bit, len = 0;
 
     for (i = min; i < max; i++) {
         bit = cron_get_bit(bits, i + offset);
         if (bit) {
             if (from == -1) from = i;
         } else if (from != -1) {
-            if (first) first = 0; else STRCAT_CHECKED(dest, ",", 1);
+            if (first) first = 0; else STRCATC(dest, ",", 1);
             if (from == i - 1) len += sprintf(buf, "%d", from);
             else len += sprintf(buf, "%d-%d", from, i - 1);
-            STRCAT_CHECKED(dest, buf, 0);
+            STRCATC(dest, buf, 0);
             from = -1;
         }
     }
     if (from == i - 1) {
-        if (first) first = 0; else STRCAT_CHECKED(dest, ",", 1);
-        STRCAT_CHECKED(dest, buf, sprintf(buf, "%d", from));
-    } else if (from == min && i == max) {
-        STRCAT_CHECKED(dest, "*", 1);
-    } else if (from != -1) {
-        if (first) first = 0; else STRCAT_CHECKED(dest, ",", 1);
-        STRCAT_CHECKED(dest, buf, sprintf(buf, "%d-%d", from, i - 1));
+        if (first) first = 0; else STRCATC(dest, ",", 1);
+        STRCATC(dest, buf, sprintf(buf, "%d", from));
+    } else if (from == min && i == max) STRCATC(dest, "*", 1);
+    else if (from != -1) {
+        if (first) first = 0; else STRCATC(dest, ",", 1);
+        STRCATC(dest, buf, sprintf(buf, "%d-%d", from, i - 1));
     }
     return len;
 }
 
-#define GENERATE_FIELD_CHECKED(dest, bits, min, max, offset, buffer_len) { tmp = generate_field(dest, bits, min, max, offset, buffer_len); if (tmp < 0) return tmp; else len += tmp; }
+#define GFC(dest, bits, min, max, offset, buffer_len) { tmp = generate_field(dest, bits, min, max, offset, buffer_len); if (tmp < 0) return tmp; else len += tmp; }
 
 int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron_len, const char **error) {
     const char* err_local;
     char buf[32];
-    int i, leap = 0, tmp;
-    int len = 1;
+    int i, leap = 0, tmp, len = 1;
     uint8_t days_of_week = *source->days_of_week;
     *buffer = '\0';
     if (!error) error = &err_local;
@@ -755,57 +752,48 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
         for (i = CRON_MAX_SECONDS; i < CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS; i++) {
             if (cron_get_bit(source->seconds, i)) {
                 leap = 1;
-                STRCAT_CHECKED(buffer, "L", 1);
+                STRCATC(buffer, "L", 1);
                 break;
             }
         }
-        GENERATE_FIELD_CHECKED(buffer, source->seconds, 0, CRON_MAX_SECONDS + (leap ? CRON_MAX_LEAP_SECONDS : 0), 0, buffer_len - len);
-        STRCAT_CHECKED(buffer, " ", 1);
+        GFC(buffer, source->seconds, 0, CRON_MAX_SECONDS + (leap ? CRON_MAX_LEAP_SECONDS : 0), 0, buffer_len - len);
+        STRCATC(buffer, " ", 1);
     }
-    GENERATE_FIELD_CHECKED(buffer, source->minutes, 0, CRON_MAX_MINUTES, 0, buffer_len - len);
-    STRCAT_CHECKED(buffer, " ", 1);
-    GENERATE_FIELD_CHECKED(buffer, source->hours, 0, CRON_MAX_HOURS, 0, buffer_len - len);
-    STRCAT_CHECKED(buffer, " ", 1);
+    GFC(buffer, source->minutes, 0, CRON_MAX_MINUTES, 0, buffer_len - len);
+    STRCATC(buffer, " ", 1);
+    GFC(buffer, source->hours, 0, CRON_MAX_HOURS, 0, buffer_len - len);
+    STRCATC(buffer, " ", 1);
     if (cron_get_bit(source->flags, 0)) {
-        STRCAT_CHECKED(buffer, "L", 1);
+        STRCATC(buffer, "L", 1);
         if (*source->day_in_month < -1) {
             len += sprintf(buf, "%d", *source->day_in_month + 1);
-            STRCAT_CHECKED(buffer, buf, sprintf(buf, "%d", *source->day_in_month + 1));
+            STRCATC(buffer, buf, sprintf(buf, "%d", *source->day_in_month + 1));
         }
-    } else if (cron_get_bit(source->flags, 1)) {
-        STRCAT_CHECKED(buffer, "LW", 2);
-    } else if (cron_get_bit(source->flags, 2)) {
-        STRCAT_CHECKED(buffer, buf, sprintf(buf, "%dW", *source->day_in_month));
-    } else if (*source->day_in_month != 0) {
-        STRCAT_CHECKED(buffer, "?", 1);
-    }
-    else GENERATE_FIELD_CHECKED(buffer, source->days_of_month, 1, CRON_MAX_DAYS_OF_MONTH, 0, buffer_len - len);
-    STRCAT_CHECKED(buffer, " ", 1);
-    GENERATE_FIELD_CHECKED(buffer, source->months, 1, CRON_MAX_MONTHS + 1, -1, buffer_len - len);
-    STRCAT_CHECKED(buffer, " ", 1);
+    } else if (cron_get_bit(source->flags, 1)) STRCATC(buffer, "LW", 2);
+    else if (cron_get_bit(source->flags, 2)) STRCATC(buffer, buf, sprintf(buf, "%dW", *source->day_in_month));
+    else if (*source->day_in_month != 0) STRCATC(buffer, "?", 1);
+    else GFC(buffer, source->days_of_month, 1, CRON_MAX_DAYS_OF_MONTH, 0, buffer_len - len);
+    STRCATC(buffer, " ", 1);
+    GFC(buffer, source->months, 1, CRON_MAX_MONTHS + 1, -1, buffer_len - len);
+    STRCATC(buffer, " ", 1);
     if (cron_get_bit(&days_of_week, 0)) {
         cron_set_bit(&days_of_week, 7);
         cron_del_bit(&days_of_week, 0);
     }
-    if (*source->flags) {
-        STRCAT_CHECKED(buffer, "?", 1);
-    } else {
+    if (*source->flags) STRCATC(buffer, "?", 1);
+    else {
         if (*source->day_in_month != 0) {
-            GENERATE_FIELD_CHECKED(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0, buffer_len - len);
-            if (*source->day_in_month == -1) {
-                STRCAT_CHECKED(buffer, "L", 1);
-            } else {
-                STRCAT_CHECKED(buffer, buf, sprintf(buf, "#%d", *source->day_in_month));
-            }
-        } else GENERATE_FIELD_CHECKED(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0, buffer_len - len);
+            GFC(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0, buffer_len - len);
+            if (*source->day_in_month == -1) STRCATC(buffer, "L", 1);
+            else STRCATC(buffer, buf, sprintf(buf, "#%d", *source->day_in_month));
+        } else GFC(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0, buffer_len - len);
     }
 #ifndef CRON_DISABLE_YEARS
     if (cron_len > 6) {
-        if (cron_get_bit(source->years, EXPR_YEARS_LENGTH*8-1)) {
-            STRCAT_CHECKED(buffer, " *", 2);
-        } else {
-            STRCAT_CHECKED(buffer, " ", 1);
-            GENERATE_FIELD_CHECKED(buffer, source->years, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS, buffer_len - len);
+        if (cron_get_bit(source->years, EXPR_YEARS_LENGTH*8-1)) STRCATC(buffer, " *", 2);
+        else {
+            STRCATC(buffer, " ", 1);
+            GFC(buffer, source->years, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS, buffer_len - len);
         }
     }
 #endif
