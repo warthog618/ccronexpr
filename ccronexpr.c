@@ -799,6 +799,7 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
             }
         } else GENERATE_FIELD_CHECKED(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0, buffer_len - len);
     }
+#ifndef CRON_DISABLE_YEARS
     if (cron_len > 6) {
         if (cron_get_bit(source->years, EXPR_YEARS_LENGTH*8-1)) {
             STRCAT_CHECKED(buffer, " *", 2);
@@ -807,6 +808,7 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
             GENERATE_FIELD_CHECKED(buffer, source->years, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS, buffer_len - len);
         }
     }
+#endif
     return len;
 }
 
