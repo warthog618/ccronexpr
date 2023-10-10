@@ -193,7 +193,7 @@ void check_fn(cron_find_fn fn, const char* pattern, const char* initial, const c
         printf("Actual: %s\n", buffer);
         assert(0);
     }
-    cron_generate_expr(&parsed1, buffer, len, &err);
+    assert(cron_generate_expr(&parsed1, buffer, 512, len, &err) > 0);
     if (0 != strcmp(pattern, buffer)) {
         printf("Line: %d\n", line);
         printf("Pattern: %s\n", pattern);
@@ -247,7 +247,7 @@ void check_expr_valid(const char* pattern, int line) {
     }
     char* buffer = (char*) malloc(512);
     memset(buffer, 0, 512);
-    cron_generate_expr(&parsed1, buffer, len, &err);
+    assert(cron_generate_expr(&parsed1, buffer, 512, len, &err) > 0);
     if (0 != strcmp(pattern, buffer)) {
         printf("Line: %d\n", line);
         printf("Pattern: %s\n", pattern);
