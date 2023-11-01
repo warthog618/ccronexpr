@@ -210,10 +210,25 @@ static int* get_field_ptr(struct tm* calendar, int field) {
     }
 }
 
+static int last_day_of_month(int month, int year) {
+    struct tm cal;
+    time_t t;
+    memset(&cal, 0, sizeof(struct tm));
+    cal.tm_mon = month + 1;
+    cal.tm_year = year;
+    t = cron_mktime(&cal);
+    return cron_time(&t, &cal)->tm_mday;
+}
+
 static int set_field(struct tm* calendar, int field, int val) {
     int* field_ptr = get_field_ptr(calendar, field);
+    int last_mday;
     if (!field_ptr || !calendar) return 1;
     *field_ptr = val;
+    if (field == CRON_CF_MONTH) {
+            last_mday = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+            if (calendar->tm_mday > last_mday) calendar->tm_mday = last_mday;
+    }
     return CRON_INVALID_INSTANT == cron_mktime(calendar) ? 1 : 0;
 }
 
@@ -231,16 +246,6 @@ static int add_to_field(struct tm* calendar, int field, int val) {
  */
 static int reset_min(struct tm* calendar, int field) {
     return set_field(calendar, field, field == CRON_CF_DAY_OF_MONTH);
-}
-
-static int last_day_of_month(int month, int year) {
-    struct tm cal;
-    time_t t;
-    memset(&cal, 0, sizeof(struct tm));
-    cal.tm_mon = month + 1;
-    cal.tm_year = year;
-    t = cron_mktime(&cal);
-    return cron_time(&t, &cal)->tm_mday;
 }
 
 /**
