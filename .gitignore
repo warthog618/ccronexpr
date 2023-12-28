@@ -5,3 +5,4 @@ cmake-build*/
 *.o
 supertinycron
 ccronexpr_test
+libccronexpr.so
