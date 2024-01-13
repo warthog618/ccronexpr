@@ -225,9 +225,10 @@ static int set_field(struct tm* calendar, int field, int val) {
     int last_mday;
     if (!field_ptr || !calendar) return 1;
     *field_ptr = val;
+    /* If set day of month would be higher than last day of new month fix it. */
     if (field == CRON_CF_MONTH) {
-            last_mday = last_day_of_month(calendar->tm_mon, calendar->tm_year);
-            if (calendar->tm_mday > last_mday) calendar->tm_mday = last_mday;
+        last_mday = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+        if (calendar->tm_mday > last_mday) calendar->tm_mday = last_mday;
     }
     return CRON_INVALID_INSTANT == cron_mktime(calendar) ? 1 : 0;
 }
