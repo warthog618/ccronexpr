@@ -264,8 +264,12 @@ void check_expr_valid_line(const char* pattern, int line) {
 void test_expr() {
     char* tz = getenv("TZ");
 
+#ifdef CRON_USE_LOCAL_TIME
     /* DST test */
-    check_fn(cron_next, "2 * * * * *", "2024-03-31_01:59:02", "2024-03-31_03:00:02");
+    if (tz && !strcmp("Europe/Prague", tz)) {
+        check_fn(cron_next, "2 * * * * *", "2024-03-31_01:59:02", "2024-03-31_03:00:02");
+    }
+#endif
 
     /*Test leap seconds
     check_fn(cron_next, "60 0 0 * * *", "2015-01-01_15:12:42", "2015-06-30_00:00:00");*/

@@ -122,10 +122,6 @@ static struct tm* cron_time_gm(time_t* date, struct tm* out) {
 
 #else
 
-static time_t cron_mktime_local(struct tm* tm) {
-    return mktime(tm);
-}
-
 static struct tm* cron_time_local(time_t* date, struct tm* out) {
 #if defined(_WIN32)
     errno_t err = localtime_s(out, date);
@@ -143,23 +139,11 @@ static struct tm* cron_time_local(time_t* date, struct tm* out) {
 
 /* Defining 'cron_' time functions to use use UTC (default) or local time */
 #ifndef CRON_USE_LOCAL_TIME
-time_t cron_mktime(struct tm* tm) {
-    return cron_mktime_gm(tm);
-}
-
-struct tm* cron_time(time_t* date, struct tm* out) {
-    return cron_time_gm(date, out);
-}
-
+time_t cron_mktime(struct tm* tm) { return cron_mktime_gm(tm); }
+struct tm* cron_time(time_t* date, struct tm* out) { return cron_time_gm(date, out); }
 #else /* CRON_USE_LOCAL_TIME */
-time_t cron_mktime(struct tm* tm) {
-    return cron_mktime_local(tm);
-}
-
-struct tm* cron_time(time_t* date, struct tm* out) {
-    return cron_time_local(date, out);
-}
-
+time_t cron_mktime(struct tm* tm) { return mktime(tm); }
+struct tm* cron_time(time_t* date, struct tm* out) { return cron_time_local(date, out); }
 #endif /* CRON_USE_LOCAL_TIME */
 
 #define reset_all_min(calendar, fields) reset_all(reset_min, calendar, fields);
