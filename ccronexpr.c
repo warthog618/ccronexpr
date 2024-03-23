@@ -123,7 +123,6 @@ static struct tm* cron_time_gm(time_t* date, struct tm* out) {
 #else
 
 static time_t cron_mktime_local(struct tm* tm) {
-    tm->tm_isdst = -1;
     return mktime(tm);
 }
 
@@ -585,9 +584,9 @@ static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* c
         next_value = next_set_bit(bits, max, 0, &notfound);
     }
     if (notfound || next_value != value) {
-        err = reset_all_min(calendar, lower_orders);
-        if (err) goto return_error;
         err = set_field(calendar, field, next_value);
+        if (err) goto return_error;
+        err = reset_all_min(calendar, lower_orders);
         if (err) goto return_error;
     }
     return next_value;
@@ -610,9 +609,9 @@ static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* c
         next_value = prev_set_bit(bits, max - 1, value, &notfound);
     }
     if (notfound || next_value != value) {
-        err = reset_all_max(calendar, lower_orders);
-        if (err) goto return_error;
         err = set_field(calendar, field, next_value);
+        if (err) goto return_error;
+        err = reset_all_max(calendar, lower_orders);
         if (err) goto return_error;
     }
     return next_value;
@@ -643,6 +642,7 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
     int err, day = -1, year = calendar->tm_year, month = calendar->tm_mon;
     unsigned int count = 0, max = 366;
     while (find_day_condition(calendar, days_of_month, dim, dom, days_of_week, dow, flags, &day) && count++ < max) {
+        if (offset > 0) reset_all_min(calendar, resets) else reset_all_max(calendar, resets);
         err = add_to_field(calendar, CRON_CF_DAY_OF_MONTH, offset);
         if (err) goto return_error;
         dom = calendar->tm_mday;
@@ -656,7 +656,6 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
             month = calendar->tm_mon;
             day = -1;
         }
-        if (offset > 0) reset_all_min(calendar, resets) else reset_all_max(calendar, resets);
     }
     return dom;
     return_error: *res_out = 1; return 0;
