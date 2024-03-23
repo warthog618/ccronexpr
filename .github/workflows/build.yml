@@ -57,4 +57,4 @@ jobs:
       - name: Test
         working-directory: ${{github.workspace}}/build
         shell: bash
-        run: ctest --extra-verbose -C $BUILD_TYPE
+        run: ctest --rerun-failed --output-on-failure --extra-verbose -C $BUILD_TYPE
