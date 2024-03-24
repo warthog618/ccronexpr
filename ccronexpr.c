@@ -575,6 +575,10 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
     return_error: return -1;
 }
 
+#define ROUND_INIT(field, expr_field, min, max, nextField) \
+        value = *get_field_ptr(calendar, field); update_value = find(expr_field, max, value, min, calendar, field, nextField, resets);
+#define ROUND_FINIT(field) if (update_value < 0) break; if (value == update_value) cron_set_bit(resets, field)
+
 static int do_nextprev(
         int (*find)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders),
         cron_expr* expr, struct tm* calendar, int dot, int offset) {
@@ -583,44 +587,26 @@ static int do_nextprev(
 
     for(;;) {
         *resets = 0;
-
-        value = calendar->tm_sec;
-        update_value = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, value, 0, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, resets);
-        if (update_value < 0) break;
-        if (value == update_value) cron_set_bit(resets, CRON_CF_SECOND);
-        else if (update_value >= CRON_MAX_SECONDS) continue;
-
-        value = calendar->tm_min;
-        update_value = find(expr->minutes, CRON_MAX_MINUTES, value, 0, calendar, CRON_CF_MINUTE, CRON_CF_HOUR_OF_DAY, resets);
-        if (update_value < 0) break;
-        if (value == update_value) cron_set_bit(resets, CRON_CF_MINUTE); else continue;
-
-        value = calendar->tm_hour;
-        update_value = find(expr->hours, CRON_MAX_HOURS, value, 0, calendar, CRON_CF_HOUR_OF_DAY, CRON_CF_DAY_OF_MONTH, resets);
-        if (update_value < 0) break;
-        if (value == update_value) cron_set_bit(resets, CRON_CF_HOUR_OF_DAY); else continue;
-
-        value = calendar->tm_mday;
-        update_value = find_day(calendar, expr->days_of_month, expr->day_in_month, value, expr->days_of_week, calendar->tm_wday, expr->flags, resets, offset);
-        if (update_value < 0) break;
-        if (value == update_value) cron_set_bit(resets, CRON_CF_DAY_OF_MONTH); else continue;
-
-        value = calendar->tm_mon; /*day already adds one if no day in same value is found*/
-        update_value = find(expr->months, CRON_MAX_MONTHS, value, 0, calendar, CRON_CF_MONTH, CRON_CF_YEAR, resets);
+        ROUND_INIT (CRON_CF_SECOND,        expr->seconds, 0, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, CRON_CF_MINUTE);
+        ROUND_FINIT(CRON_CF_SECOND);       else if (update_value >= CRON_MAX_SECONDS) continue;
+        ROUND_INIT (CRON_CF_MINUTE,        expr->minutes, 0, CRON_MAX_MINUTES, CRON_CF_HOUR_OF_DAY);
+        ROUND_FINIT(CRON_CF_MINUTE);       else continue;
+        ROUND_INIT (CRON_CF_HOUR_OF_DAY,   expr->hours,   0, CRON_MAX_HOURS,   CRON_CF_DAY_OF_MONTH);
+        ROUND_FINIT(CRON_CF_HOUR_OF_DAY);  else continue;
+        value = *get_field_ptr(calendar,   CRON_CF_DAY_OF_MONTH);
+        update_value = find_day(calendar,  expr->days_of_month, expr->day_in_month, value, expr->days_of_week, calendar->tm_wday, expr->flags, resets, offset);
+        ROUND_FINIT(CRON_CF_DAY_OF_MONTH); else continue;
+        ROUND_INIT (CRON_CF_MONTH,         expr->months, 0, CRON_MAX_MONTHS, CRON_CF_YEAR);
         if (update_value < 0) break;
         if (value != update_value) {
-            if (abs(calendar->tm_year - dot) > CRON_MAX_YEARS_DIFF) {
-                update_value = -1;
-                break;
-            }
+            if (abs(calendar->tm_year - dot) > CRON_MAX_YEARS_DIFF) { update_value = -1; break; }
             continue;
         }
 #ifdef CRON_DISABLE_YEARS
         else break;
 #else
         if (cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) break;
-        value = calendar->tm_year;
-        update_value = find(expr->years, CRON_MAX_YEARS-CRON_MIN_YEARS, value, YEAR_OFFSET-CRON_MIN_YEARS, calendar, CRON_CF_YEAR, CRON_CF_NEXT, resets);
+        ROUND_INIT (CRON_CF_YEAR, expr->years, YEAR_OFFSET-CRON_MIN_YEARS, CRON_MAX_YEARS-CRON_MIN_YEARS, CRON_CF_NEXT);
         if (update_value < 0 || value == update_value) break;
 #endif
     }
