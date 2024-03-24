@@ -651,7 +651,7 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
     if (!error) error = &err_local;
 
     if (cron_len > 5) {
-        for (i = CRON_MAX_SECONDS; i < CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS; i++) {
+        for (i = CRON_MAX_SECONDS; i < CRON_MAX_SECONDS + CRON_MAX_LEAP_SECONDS; i++) {
             if (cron_get_bit(source->seconds, i)) {
                 leap = 1;
                 STRCATC(buffer, "L", 1);
