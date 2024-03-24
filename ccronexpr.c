@@ -183,8 +183,7 @@ static int last_day_of_month(int month, int year, int is_weekday) {
     t = cron_mktime(&calendar);
 
     if (is_weekday) {
-        /* If the last day of the month is a Saturday (6) or Sunday (0), decrement the day.
-         * But it is shifted to (5) and (6). */
+        /* If the last day of the month is a Saturday (6) or Sunday (0), decrement the day. But it is shifted to (5) and (6). */
         while (cron_time(&t, &calendar)->tm_wday == 6 || cron_time(&t, &calendar)->tm_wday == 0) t -= DAY_SECONDS; /* subtract a day */
     }
 
@@ -221,6 +220,7 @@ static int closest_weekday(int day_of_month, int month, int year) {
 
 static void set_field(struct tm* calendar, int field, int val) {
     *get_field_ptr(calendar, field) = val;
+    /* Reset day of month after month change to it's maximum. */
     if (field == CRON_CF_MONTH) {
         val = last_day_of_month(calendar->tm_mon, calendar->tm_year, 0);
         if (calendar->tm_mday > val) calendar->tm_mday = val;
@@ -232,15 +232,11 @@ static void add_to_field(struct tm* calendar, int field, int val) {
 }
 
 /**
- * Reset the calendar setting all the fields provided to zero.
+ * Reset the calendar setting all the fields provided to zero or max value.
  */
 static void reset_min(struct tm* calendar, int field) {
     set_field(calendar, field, field == CRON_CF_DAY_OF_MONTH);
 }
-
-/**
- * Reset the calendar setting all the fields provided to zero.
- */
 static void reset_max(struct tm* calendar, int field) {
          if (CRON_CF_SECOND       == field) set_field(calendar, field, CRON_MAX_SECONDS-1);
     else if (CRON_CF_MINUTE       == field) set_field(calendar, field, CRON_MAX_MINUTES-1);
@@ -495,7 +491,7 @@ static void Fields(ParserContext* context, int len) {
 }
 
 /**
- * Search the bits provided for the next set bit after the value provided,
+ * Search the bits provided for the next/prev set bit after the value provided,
  * and reset the calendar.
  */
 static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders) {
@@ -513,11 +509,6 @@ static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* c
     return next_value;
     return_error: return -1;
 }
-
-/**
- * Search the bits provided for the next set bit after the value provided,
- * and reset the calendar.
- */
 static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders) {
     int next_value = prev_set_bit(bits, value+offset, 0)-offset;
     /* roll under if needed */
@@ -542,10 +533,10 @@ static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_
         else if (*flags & 4)                     tmp_day = closest_weekday(*dim-1, calendar->tm_mon, calendar->tm_year);
         *day = tmp_day;
     }
-    if (!cron_get_bit(days_of_month, dom) || !cron_get_bit(days_of_week,  dow)) return 1;
+    if (!cron_get_bit(days_of_month, dom) || !cron_get_bit(days_of_week,  dow))                  return 1;
     if (*flags) {
-        if ((*flags & 3) && dom != tmp_day+1+*dim) return 1;
-        if ((*flags & 4) && dom != tmp_day)        return 1;
+        if ((*flags & 3) && dom != tmp_day+1+*dim)                                               return 1;
+        if ((*flags & 4) && dom != tmp_day)                                                      return 1;
     } else {
         if (*dim < 0 && (dom < tmp_day+WEEK_DAYS**dim+1 || dom >= tmp_day+WEEK_DAYS*(*dim+1)+1)) return 1;
         if (*dim > 0 && (dom < WEEK_DAYS*(*dim-1)+1     || dom >= WEEK_DAYS**dim+1))             return 1;
@@ -563,8 +554,7 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
         dow = calendar->tm_wday;
         if (year != calendar->tm_year) {
             year = calendar->tm_year;
-            /* This should not be needed unless there is as single day month in libc. */
-            day = -1;
+            day = -1; /* This should not be needed unless there is as single day month in libc. */
         }
         if (month != calendar->tm_mon) {
             month = calendar->tm_mon;
@@ -575,9 +565,9 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
     return_error: return -1;
 }
 
-#define ROUND_INIT(field, expr_field, min, max, nextField) \
+#define RI(field, expr_field, min, max, nextField) \
         value = *get_field_ptr(calendar, field); update_value = find(expr_field, max, value, min, calendar, field, nextField, resets);
-#define ROUND_FINIT(field) if (update_value < 0) break; if (value == update_value) cron_set_bit(resets, field)
+#define RF(field) if (update_value < 0) break; if (value == update_value) cron_set_bit(resets, field)
 
 static int do_nextprev(
         int (*find)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders),
@@ -587,17 +577,17 @@ static int do_nextprev(
 
     for(;;) {
         *resets = 0;
-        ROUND_INIT (CRON_CF_SECOND,        expr->seconds, 0, CRON_MAX_SECONDS + CRON_MAX_LEAP_SECONDS, CRON_CF_MINUTE);
-        ROUND_FINIT(CRON_CF_SECOND);       else if (update_value >= CRON_MAX_SECONDS) continue;
-        ROUND_INIT (CRON_CF_MINUTE,        expr->minutes, 0, CRON_MAX_MINUTES,                         CRON_CF_HOUR_OF_DAY);
-        ROUND_FINIT(CRON_CF_MINUTE);       else continue;
-        ROUND_INIT (CRON_CF_HOUR_OF_DAY,   expr->hours,   0, CRON_MAX_HOURS,                           CRON_CF_DAY_OF_MONTH);
-        ROUND_FINIT(CRON_CF_HOUR_OF_DAY);  else continue;
-        value = *get_field_ptr(calendar,                                                               CRON_CF_DAY_OF_MONTH);
+        RI(CRON_CF_SECOND,        expr->seconds, 0, CRON_MAX_SECONDS + CRON_MAX_LEAP_SECONDS, CRON_CF_MINUTE);
+        RF(CRON_CF_SECOND);       else if (update_value >= CRON_MAX_SECONDS) continue;
+        RI(CRON_CF_MINUTE,        expr->minutes, 0, CRON_MAX_MINUTES,                         CRON_CF_HOUR_OF_DAY);
+        RF(CRON_CF_MINUTE);       else continue;
+        RI(CRON_CF_HOUR_OF_DAY,   expr->hours,   0, CRON_MAX_HOURS,                           CRON_CF_DAY_OF_MONTH);
+        RF(CRON_CF_HOUR_OF_DAY);  else continue;
+        value = *get_field_ptr(calendar,            CRON_CF_DAY_OF_MONTH);
         update_value = find_day(calendar,
                 expr->days_of_month, expr->day_in_month, value, expr->days_of_week, calendar->tm_wday, expr->flags, resets, offset);
-        ROUND_FINIT(CRON_CF_DAY_OF_MONTH); else continue;
-        ROUND_INIT (CRON_CF_MONTH,         expr->months, 0, CRON_MAX_MONTHS,                           CRON_CF_YEAR);
+        RF(CRON_CF_DAY_OF_MONTH); else continue;
+        RI(CRON_CF_MONTH,         expr->months, 0, CRON_MAX_MONTHS,                           CRON_CF_YEAR);
         if (update_value < 0) break;
         if (value != update_value) {
             if (abs(calendar->tm_year - dot) > CRON_MAX_YEARS_DIFF) { update_value = -1; break; }
@@ -607,7 +597,7 @@ static int do_nextprev(
         else break;
 #else
         if (cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) break;
-        ROUND_INIT (CRON_CF_YEAR, expr->years, YEAR_OFFSET-CRON_MIN_YEARS, CRON_MAX_YEARS-CRON_MIN_YEARS, CRON_CF_NEXT);
+        RI(CRON_CF_YEAR, expr->years, YEAR_OFFSET-CRON_MIN_YEARS, CRON_MAX_YEARS-CRON_MIN_YEARS, CRON_CF_NEXT);
         if (update_value < 0 || value == update_value) break;
 #endif
     }
@@ -728,9 +718,7 @@ static time_t cron(
     if (!calendar) goto return_error;
     original = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == original) goto return_error;
-
     if (0 != do_nextprev(find, expr, calendar, calendar->tm_year, offset)) goto return_error;
-
     calculated = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == calculated) goto return_error;
     if (calculated == original) {
