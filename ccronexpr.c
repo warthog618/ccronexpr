@@ -155,18 +155,14 @@ uint8_t cron_get_bit(const uint8_t* rbyte, int idx) {
     return (rbyte[GET_BYTE(idx)] & (1 << GET_BIT(idx))) ? 1 : 0;
 }
 
-static int next_set_bit(uint8_t* bits, int max, int from_index, int* notfound) {
-    int i;
-    if (!bits) goto error;
-    for (i = from_index; i < max; i++) if (cron_get_bit(bits, i)) return i;
-    error: *notfound = 1; return 0;
+static int next_set_bit(uint8_t* bits, int max, int from_index) {
+    for (; from_index < max; from_index++) if (cron_get_bit(bits, from_index)) return from_index;
+    return -1;
 }
 
-static int prev_set_bit(uint8_t* bits, int from_index, int to_index, int* notfound) {
-    int i;
-    if (!bits) goto error;
-    for (i = from_index; i >= to_index; i--) if (cron_get_bit(bits, i)) return i;
-    error: *notfound = 1; return 0;
+static int prev_set_bit(uint8_t* bits, int from_index, int to_index) {
+    for (; from_index >= to_index; from_index--) if (cron_get_bit(bits, from_index)) return from_index;
+    return -1;
 }
 
 static int* get_field_ptr(struct tm* calendar, int field) {
@@ -182,20 +178,27 @@ static int* get_field_ptr(struct tm* calendar, int field) {
     }
 }
 
-static int last_day_of_month(int month, int year) {
+static int last_day_of_month(int month, int year, int is_weekday) {
     struct tm calendar;
     time_t t;
     memset(&calendar, 0, sizeof(struct tm));
-    calendar.tm_mon = month + 1;
-    calendar.tm_year = year;
+    calendar.tm_mon = month + 1; /* next month */
+    calendar.tm_year = year; /* years since 1900 */
     t = cron_mktime(&calendar);
+
+    if (is_weekday) {
+        /* If the last day of the month is a Saturday (6) or Sunday (0), decrement the day.
+         * But it is shifted to (5) and (6). */
+        while (cron_time(&t, &calendar)->tm_wday == 6 || cron_time(&t, &calendar)->tm_wday == 0) t -= DAY_SECONDS; /* subtract a day */
+    }
+
     return cron_time(&t, &calendar)->tm_mday;
 }
 
 static void set_field(struct tm* calendar, int field, int val) {
     *get_field_ptr(calendar, field) = val;
     if (field == CRON_CF_MONTH) {
-        val = last_day_of_month(calendar->tm_mon, calendar->tm_year);
+        val = last_day_of_month(calendar->tm_mon, calendar->tm_year, 0);
         if (calendar->tm_mday > val) calendar->tm_mday = val;
     }
 }
@@ -217,29 +220,12 @@ static void reset_min(struct tm* calendar, int field) {
  * Reset the calendar setting all the fields provided to zero.
  */
 static void reset_max(struct tm* calendar, int field) {
-    int value;
     switch (field) {
-    case CRON_CF_SECOND:       value = CRON_MAX_SECONDS-1;                                     break;
-    case CRON_CF_MINUTE:       value = CRON_MAX_MINUTES-1;                                     break;
-    case CRON_CF_HOUR_OF_DAY:  value = CRON_MAX_HOURS-1;                                       break;
-    case CRON_CF_DAY_OF_MONTH: value = last_day_of_month(calendar->tm_mon, calendar->tm_year); break;
-    default:                   return; /* unknown field */
+    case CRON_CF_SECOND:       set_field(calendar, field, CRON_MAX_SECONDS-1); return;
+    case CRON_CF_MINUTE:       set_field(calendar, field, CRON_MAX_MINUTES-1); return;
+    case CRON_CF_HOUR_OF_DAY:  set_field(calendar, field, CRON_MAX_HOURS-1); return;
+    case CRON_CF_DAY_OF_MONTH: set_field(calendar, field, last_day_of_month(calendar->tm_mon, calendar->tm_year, 0)); return;
     }
-    set_field(calendar, field, value);
-}
-
-static int last_weekday_of_month(int month, int year) {
-    struct tm calendar;
-    time_t t;
-    memset(&calendar, 0, sizeof(struct tm));
-    calendar.tm_mon = month + 1; /* next month */
-    calendar.tm_year = year; /* years since 1900 */
-    t = cron_mktime(&calendar);
-
-    /* If the last day of the month is a Saturday (6) or Sunday (0), decrement the day.
-     * But it is shifted to (5) and (6). */
-    while (cron_time(&t, &calendar)->tm_wday == 6 || cron_time(&t, &calendar)->tm_wday == 0) t -= DAY_SECONDS; /* subtract a day */
-    return cron_time(&t, &calendar)->tm_mday;
 }
 
 static int closest_weekday(int day_of_month, int month, int year) {
@@ -257,7 +243,7 @@ static int closest_weekday(int day_of_month, int month, int year) {
     /* If it's a Sunday */
     if (wday == 0) {
         /* If it's the last day of the month, go to the previous Friday */
-        if (day_of_month + 1 == last_day_of_month(month, year)) t -= 2 * DAY_SECONDS;
+        if (day_of_month + 1 == last_day_of_month(month, year, 0)) t -= 2 * DAY_SECONDS;
         else t += DAY_SECONDS; /* go to the next Monday */
     /* If it's a Saturday */
     } else if (wday == 6) {
@@ -271,23 +257,18 @@ static int closest_weekday(int day_of_month, int month, int year) {
 }
 
 static void reset_all(void (*fn)(struct tm* calendar, int field), struct tm* calendar, uint8_t* fields) {
-    int i;
-    for (i = 0; i < CRON_CF_ARR_LEN; i++) if (cron_get_bit(fields, i)) fn(calendar, i);
+    int i; for (i = 0; i < CRON_CF_ARR_LEN; i++) if (cron_get_bit(fields, i)) fn(calendar, i);
 }
 
 typedef enum { T_ASTERISK, T_QUESTION, T_NUMBER, T_COMMA, T_SLASH, T_L, T_W, T_HASH, T_MINUS, T_WS, T_EOF, T_INVALID } TokenType;
 typedef struct { const char* input; TokenType type; cron_expr* target; int field_type, value, min, max, offset, fix_dow; uint8_t* field; const char* err; } ParserContext;
 
 static int compare_strings(const char* str1, const char* str2, size_t len) {
-    size_t i;
-    for (i = 0; i < len; i++) if (toupper(str1[i]) != str2[i]) return str1[i] - str2[i];
-    return 0;
+    size_t i; for (i = 0; i < len; i++) if (toupper(str1[i]) != str2[i]) return str1[i] - str2[i]; return 0;
 }
 
 static int match_ordinals(const char* str, const char* const* arr, size_t arr_len) {
-    size_t i;
-    for (i = 0; i < arr_len; i++) if (!compare_strings(str, arr[i], strlen(arr[i]))) return (int)i;
-    return -1;
+    size_t i; for (i = 0; i < arr_len; i++) if (!compare_strings(str, arr[i], strlen(arr[i]))) return (int)i; return -1;
 }
 
 static int count_fields(const char* str, char del) {
@@ -526,15 +507,14 @@ static void Fields(ParserContext* context, int len) {
  * and reset the calendar.
  */
 static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out) {
-    int notfound = 0, next_value = next_set_bit(bits, max, value+offset, &notfound)-offset;
+    int next_value = next_set_bit(bits, max, value+offset)-offset;
     /* roll over if needed */
-    if (notfound) {
+    if (next_value < 0) {
         add_to_field(calendar, nextField, 1); MKTIME(calendar);
         reset_min(calendar, field); MKTIME(calendar);
-        notfound = 0;
-        next_value = next_set_bit(bits, max, 0, &notfound);
+        next_value = next_set_bit(bits, max, 0);
     }
-    if (notfound || next_value != value) {
+    if (next_value < 0 || next_value != value) {
         set_field(calendar, field, next_value); MKTIME(calendar);
         reset_all_min(calendar, lower_orders); MKTIME(calendar);
     }
@@ -547,15 +527,14 @@ static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* c
  * and reset the calendar.
  */
 static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int* res_out) {
-    int notfound = 0, next_value = prev_set_bit(bits, value+offset, 0, &notfound)-offset;
+    int next_value = prev_set_bit(bits, value+offset, 0)-offset;
     /* roll under if needed */
-    if (notfound) {
+    if (next_value < 0) {
         add_to_field(calendar, nextField, -1); MKTIME(calendar);
         reset_max(calendar, field); MKTIME(calendar);
-        notfound = 0;
-        next_value = prev_set_bit(bits, max - 1, value, &notfound);
+        next_value = prev_set_bit(bits, max - 1, value);
     }
-    if (notfound || next_value != value) {
+    if (next_value < 0 || next_value != value) {
         set_field(calendar, field, next_value); MKTIME(calendar);
         reset_all_max(calendar, lower_orders); MKTIME(calendar);
     }
@@ -566,13 +545,12 @@ static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* c
 static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* day) {
     int tmp_day = *day;
     if (tmp_day < 0) {
-        if ((!*flags && *dim < 0) || *flags & 1) tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year);
-        else if (*flags & 2)                     tmp_day = last_weekday_of_month(calendar->tm_mon, calendar->tm_year);
+        if ((!*flags && *dim < 0) || *flags & 1) tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year, 0);
+        else if (*flags & 2)                     tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year, 1);
         else if (*flags & 4)                     tmp_day = closest_weekday(*dim-1, calendar->tm_mon, calendar->tm_year);
         *day = tmp_day;
     }
-    if (!cron_get_bit(days_of_month, dom)) return 1;
-    if (!cron_get_bit(days_of_week,  dow)) return 1;
+    if (!cron_get_bit(days_of_month, dom) || !cron_get_bit(days_of_week,  dow)) return 1;
     if (*flags) {
         if ((*flags & 3) && dom != tmp_day+1+*dim) return 1;
         if ((*flags & 4) && dom != tmp_day)        return 1;
