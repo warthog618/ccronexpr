@@ -491,35 +491,19 @@ static void Fields(ParserContext* context, int len) {
 /**
  * Search the bits provided for the next/prev set bit after the value provided, and reset the calendar.
  */
-static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders) {
-    int next_value = next_set_bit(bits, max, value+offset)-offset;
-    /* roll over if needed */
-    if (next_value < 0) {
-        add_to_field(calendar, nextField, 1);   MKTIME(calendar);
-        reset_min(calendar, field);             MKTIME(calendar);
-        next_value = next_set_bit(bits, max, 0);
-    }
-    if (next_value < 0 || next_value != value) {
-        set_field(calendar, field, next_value); MKTIME(calendar);
-        reset_all_min(calendar, lower_orders);  MKTIME(calendar);
-    }
-    return next_value;
-    return_error: return -1;
-}
-static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders) {
-    int next_value = prev_set_bit(bits, value+offset, 0)-offset;
+static int find_nextprev(uint8_t* bits, int max, int value, int value_offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int offset) {
+    int next_value = (offset > 0 ? next_set_bit(bits, max, value+value_offset) : prev_set_bit(bits, value+value_offset, 0))-value_offset;
     /* roll under if needed */
     if (next_value < 0) {
-        add_to_field(calendar, nextField, -1);  MKTIME(calendar);
-        reset_max(calendar, field);             MKTIME(calendar);
-        next_value = prev_set_bit(bits, max - 1, value);
+        add_to_field(calendar, nextField, offset);                                                        MKTIME(calendar);
+        if (offset > 0) reset_max(calendar, field); else reset_min(calendar, field);                      MKTIME(calendar);
+        next_value = offset > 0 ? next_set_bit(bits, max, 0) : prev_set_bit(bits, max - 1, value);
     }
     if (next_value < 0 || next_value != value) {
         set_field(calendar, field, next_value); MKTIME(calendar);
-        reset_all_max(calendar, lower_orders);  MKTIME(calendar);
+        if (offset > 0) reset_all_min(calendar, lower_orders) else reset_all_max(calendar, lower_orders); MKTIME(calendar);
     }
-    return next_value;
-    return_error: return -1;
+    return next_value; return_error: return -1;
 }
 
 static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* day) {
@@ -563,12 +547,10 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
 }
 
 #define RI(field, expr_field, min, max, nextField) \
-        value = *get_field_ptr(calendar, field); update_value = find(expr_field, max, value, min, calendar, field, nextField, resets);
+        value = *get_field_ptr(calendar, field); update_value = find_nextprev(expr_field, max, value, min, calendar, field, nextField, resets, offset);
 #define RF(field) if (update_value < 0) break; if (value == update_value) cron_set_bit(resets, field)
 
-static int do_nextprev(
-        int (*find)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders),
-        cron_expr* expr, struct tm* calendar, int dot, int offset) {
+static int do_nextprev(cron_expr* expr, struct tm* calendar, int dot, int offset) {
     int value = 0, update_value = 0;
     uint8_t resets[1];
 
@@ -686,9 +668,7 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
     return len;
 }
 
-static time_t cron(
-        int (*find)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders),
-        cron_expr* expr, time_t date, int offset) {
+static time_t cron(cron_expr* expr, time_t date, int offset) {
     /*
      The plan:
 
@@ -715,13 +695,13 @@ static time_t cron(
     if (!calendar) goto return_error;
     original = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == original) goto return_error;
-    if (0 != do_nextprev(find, expr, calendar, calendar->tm_year, offset)) goto return_error;
+    if (0 != do_nextprev(expr, calendar, calendar->tm_year, offset)) goto return_error;
     calculated = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == calculated) goto return_error;
     if (calculated == original) {
         /* We arrived at the original timestamp - round up to the next whole second and try again... */
         add_to_field(calendar, CRON_CF_SECOND, offset); MKTIME(calendar);
-        if (0 != do_nextprev(find, expr, calendar, calendar->tm_year, offset)) goto return_error;
+        if (0 != do_nextprev(expr, calendar, calendar->tm_year, offset)) goto return_error;
     }
 
     return cron_mktime(calendar);
@@ -758,5 +738,5 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
     error: return;
 }
 
-time_t cron_next(cron_expr* expr, time_t date) { return cron(find_next, expr, date, 1); }
-time_t cron_prev(cron_expr* expr, time_t date) { return cron(find_prev, expr, date, -1); }
+time_t cron_next(cron_expr* expr, time_t date) { return cron(expr, date, +1); }
+time_t cron_prev(cron_expr* expr, time_t date) { return cron(expr, date, -1); }
