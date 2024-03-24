@@ -587,16 +587,17 @@ static int do_nextprev(
 
     for(;;) {
         *resets = 0;
-        ROUND_INIT (CRON_CF_SECOND,        expr->seconds, 0, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, CRON_CF_MINUTE);
+        ROUND_INIT (CRON_CF_SECOND,        expr->seconds, 0, CRON_MAX_SECONDS + CRON_MAX_LEAP_SECONDS, CRON_CF_MINUTE);
         ROUND_FINIT(CRON_CF_SECOND);       else if (update_value >= CRON_MAX_SECONDS) continue;
-        ROUND_INIT (CRON_CF_MINUTE,        expr->minutes, 0, CRON_MAX_MINUTES, CRON_CF_HOUR_OF_DAY);
+        ROUND_INIT (CRON_CF_MINUTE,        expr->minutes, 0, CRON_MAX_MINUTES,                         CRON_CF_HOUR_OF_DAY);
         ROUND_FINIT(CRON_CF_MINUTE);       else continue;
-        ROUND_INIT (CRON_CF_HOUR_OF_DAY,   expr->hours,   0, CRON_MAX_HOURS,   CRON_CF_DAY_OF_MONTH);
+        ROUND_INIT (CRON_CF_HOUR_OF_DAY,   expr->hours,   0, CRON_MAX_HOURS,                           CRON_CF_DAY_OF_MONTH);
         ROUND_FINIT(CRON_CF_HOUR_OF_DAY);  else continue;
-        value = *get_field_ptr(calendar,   CRON_CF_DAY_OF_MONTH);
-        update_value = find_day(calendar,  expr->days_of_month, expr->day_in_month, value, expr->days_of_week, calendar->tm_wday, expr->flags, resets, offset);
+        value = *get_field_ptr(calendar,                                                               CRON_CF_DAY_OF_MONTH);
+        update_value = find_day(calendar,
+                expr->days_of_month, expr->day_in_month, value, expr->days_of_week, calendar->tm_wday, expr->flags, resets, offset);
         ROUND_FINIT(CRON_CF_DAY_OF_MONTH); else continue;
-        ROUND_INIT (CRON_CF_MONTH,         expr->months, 0, CRON_MAX_MONTHS, CRON_CF_YEAR);
+        ROUND_INIT (CRON_CF_MONTH,         expr->months, 0, CRON_MAX_MONTHS,                           CRON_CF_YEAR);
         if (update_value < 0) break;
         if (value != update_value) {
             if (abs(calendar->tm_year - dot) > CRON_MAX_YEARS_DIFF) { update_value = -1; break; }
