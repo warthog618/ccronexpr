@@ -579,13 +579,13 @@ static int do_nextprev(
         int (*find)(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders),
         cron_expr* expr, struct tm* calendar, int dot, int offset) {
     int value = 0, update_value = 0;
-    uint8_t resets[1], empty_list[1] = {0};
+    uint8_t resets[1];
 
     for(;;) {
         *resets = 0;
 
         value = calendar->tm_sec;
-        update_value = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, value, 0, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, empty_list);
+        update_value = find(expr->seconds, CRON_MAX_SECONDS+CRON_MAX_LEAP_SECONDS, value, 0, calendar, CRON_CF_SECOND, CRON_CF_MINUTE, resets);
         if (update_value < 0) break;
         if (value == update_value) cron_set_bit(resets, CRON_CF_SECOND);
         else if (update_value >= CRON_MAX_SECONDS) continue;
