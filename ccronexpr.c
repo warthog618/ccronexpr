@@ -495,13 +495,13 @@ static int find_nextprev(uint8_t* bits, int max, int value, int value_offset, st
     int next_value = (offset > 0 ? next_set_bit(bits, max, value+value_offset) : prev_set_bit(bits, value+value_offset, 0))-value_offset;
     /* roll under if needed */
     if (next_value < 0) {
-        add_to_field(calendar, nextField, offset);                                                        MKTIME(calendar);
-        if (offset > 0) reset_max(calendar, field); else reset_min(calendar, field);                      MKTIME(calendar);
+        if (offset > 0) reset_max(calendar, field); else reset_min(calendar, field);
+        add_to_field(calendar, nextField, offset); MKTIME(calendar);
         next_value = offset > 0 ? next_set_bit(bits, max, 0) : prev_set_bit(bits, max - 1, value);
     }
     if (next_value < 0 || next_value != value) {
+        if (offset > 0) reset_all_min(calendar, lower_orders) else reset_all_max(calendar, lower_orders);
         set_field(calendar, field, next_value); MKTIME(calendar);
-        if (offset > 0) reset_all_min(calendar, lower_orders) else reset_all_max(calendar, lower_orders); MKTIME(calendar);
     }
     return next_value; return_error: return -1;
 }
@@ -542,8 +542,7 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
             day = -1;
         }
     }
-    return dom;
-    return_error: return -1;
+    return dom; return_error: return -1;
 }
 
 #define RI(field, expr_field, min, max, nextField) \
