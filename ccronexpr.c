@@ -147,17 +147,9 @@ struct tm* cron_time(time_t* date, struct tm* out) {
 #define GFC(dest, bits, min, max, offset, buffer_len) \
                                         { tmp = generate_field(dest, bits, min, max, offset, buffer_len); if (tmp < 0) return tmp; else len += tmp; }
 
-void cron_set_bit(uint8_t* rbyte, int idx) {
-    rbyte[GET_BYTE(idx)] |= (uint8_t)(1 << GET_BIT(idx));
-}
-
-void cron_del_bit(uint8_t* rbyte, int idx) {
-    rbyte[GET_BYTE(idx)] &= (uint8_t)~(1 << GET_BIT(idx));
-}
-
-uint8_t cron_get_bit(const uint8_t* rbyte, int idx) {
-    return (rbyte[GET_BYTE(idx)] & (1 << GET_BIT(idx))) ? 1 : 0;
-}
+void    cron_set_bit(      uint8_t* rbyte, int idx) { rbyte[GET_BYTE(idx)] |= (uint8_t) (1 << GET_BIT(idx)); }
+void    cron_del_bit(      uint8_t* rbyte, int idx) { rbyte[GET_BYTE(idx)] &= (uint8_t)~(1 << GET_BIT(idx)); }
+uint8_t cron_get_bit(const uint8_t* rbyte, int idx) { return (uint8_t)(rbyte[GET_BYTE(idx)] & (1 << GET_BIT(idx))); }
 
 static int next_set_bit(uint8_t* bits, int max, int from_index) {
     for (; from_index < max; from_index++) if (cron_get_bit(bits, from_index)) return from_index;
