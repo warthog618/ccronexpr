@@ -63,7 +63,7 @@ static const char* const MONTHS_ARR[] = { "FOO", "JAN", "FEB", "MAR", "APR", "MA
 /**
  * Time functions from standard library.
  * This part defines: cron_mktime: create time_t from tm
- *                    cron_time: create tm from time_t
+ *                    cron_time:   create tm from time_t
  */
 
 /* forward declarations for platforms that may need them */
@@ -88,9 +88,7 @@ time_t cron_mktime(struct tm* tm) {
 /* https://www.nongnu.org/avr-libc/user-manual/group__avr__time.html */
     return mk_gmtime(tm);
 #elif defined(ESP8266) || defined(ESP_PLATFORM) || defined(TARGET_LIKE_MBED)
-
 #error "timegm() is not supported on the ESP platform, please use this library with CRON_USE_LOCAL_TIME"
-
 #elif defined(ANDROID) && !defined(__LP64__)
     /* https://github.com/adobe/chromium/blob/cfe5bf0b51b1f6b9fe239c2a3c2f2364da9967d7/base/os_compat_android.cc#L20 */
     static const time_t kTimeMax = ~(1L << (sizeof (time_t) * CHAR_BIT - 1));
@@ -350,14 +348,14 @@ static int Range(ParserContext* context, int* from, int to) {
             *context->target->day_in_month = (int8_t)Number(context);
             if (*context->target->day_in_month > 5 || *context->target->day_in_month < -5)
                 PARSE_ERROR("Nth-day - '#' can follow only with -5..5");
-        } else PARSE_ERROR("Nth-day - '#' allowed only for day of week");
+        } else  PARSE_ERROR("Nth-day - '#' allowed only for day of week");
         break;
     case T_MINUS:
         token_next(context);
         if (T_NUMBER == context->type) {
             to = context->value;
             token_next(context);
-        } else PARSE_ERROR("Range '-' follows with number");
+        } else  PARSE_ERROR("Range '-' follows with number");
         break;
     case T_W:
         *context->target->day_in_month = (int8_t)to;
@@ -371,10 +369,10 @@ static int Range(ParserContext* context, int* from, int to) {
         if (CRON_CF_DAY_OF_WEEK == context->field_type) {
             *context->target->day_in_month = -1;
             token_next(context);
-        } else PARSE_ERROR("Range - 'L' allowed only for day of week");
+        } else  PARSE_ERROR("Range - 'L' allowed only for day of week");
         break;
     case T_WS: case T_SLASH: case T_COMMA: case T_EOF: break;
-    default: PARSE_ERROR("Range - error");
+    default:    PARSE_ERROR("Range - error");
     }
     error: return to;
 }
@@ -466,18 +464,18 @@ static void Fields(ParserContext* context, int len) {
     token_next(context);
     if (len < 6) cron_set_bit(context->target->seconds, 0);
     else {
-        FieldWrapper(context, CRON_CF_SECOND, 0, CRON_MAX_SECONDS, 0, context->target->seconds);
+        FieldWrapper(context, CRON_CF_SECOND,   0, CRON_MAX_SECONDS,          0, context->target->seconds);
         TOKEN_COMPARE(context, T_WS);
     }
-    FieldWrapper(context, CRON_CF_MINUTE, 0, CRON_MAX_MINUTES, 0, context->target->minutes);
+    FieldWrapper(context, CRON_CF_MINUTE,       0, CRON_MAX_MINUTES,          0, context->target->minutes);
     TOKEN_COMPARE(context, T_WS);
-    FieldWrapper(context, CRON_CF_HOUR_OF_DAY, 0, CRON_MAX_HOURS, 0, context->target->hours);
+    FieldWrapper(context, CRON_CF_HOUR_OF_DAY,  0, CRON_MAX_HOURS,            0, context->target->hours);
     TOKEN_COMPARE(context, T_WS);
-    FieldWrapper(context, CRON_CF_DAY_OF_MONTH, 1, CRON_MAX_DAYS_OF_MONTH, 0, context->target->days_of_month);
+    FieldWrapper(context, CRON_CF_DAY_OF_MONTH, 1, CRON_MAX_DAYS_OF_MONTH,    0, context->target->days_of_month);
     TOKEN_COMPARE(context, T_WS);
-    FieldWrapper(context, CRON_CF_MONTH, 1, CRON_MAX_MONTHS + 1, -1, context->target->months);
+    FieldWrapper(context, CRON_CF_MONTH,        1, CRON_MAX_MONTHS + 1,      -1, context->target->months);
     TOKEN_COMPARE(context, T_WS);
-    FieldWrapper(context, CRON_CF_DAY_OF_WEEK, 0, CRON_MAX_DAYS_OF_WEEK + 1, 0, context->target->days_of_week);
+    FieldWrapper(context, CRON_CF_DAY_OF_WEEK,  0, CRON_MAX_DAYS_OF_WEEK + 1, 0, context->target->days_of_week);
 #ifndef CRON_DISABLE_YEARS
     if (len < 7) cron_set_bit(context->target->years, EXPR_YEARS_LENGTH*8-1);
     else {
@@ -491,20 +489,19 @@ static void Fields(ParserContext* context, int len) {
 }
 
 /**
- * Search the bits provided for the next/prev set bit after the value provided,
- * and reset the calendar.
+ * Search the bits provided for the next/prev set bit after the value provided, and reset the calendar.
  */
 static int find_next(uint8_t* bits, int max, int value, int offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders) {
     int next_value = next_set_bit(bits, max, value+offset)-offset;
     /* roll over if needed */
     if (next_value < 0) {
-        add_to_field(calendar, nextField, 1); MKTIME(calendar);
-        reset_min(calendar, field); MKTIME(calendar);
+        add_to_field(calendar, nextField, 1);   MKTIME(calendar);
+        reset_min(calendar, field);             MKTIME(calendar);
         next_value = next_set_bit(bits, max, 0);
     }
     if (next_value < 0 || next_value != value) {
         set_field(calendar, field, next_value); MKTIME(calendar);
-        reset_all_min(calendar, lower_orders); MKTIME(calendar);
+        reset_all_min(calendar, lower_orders);  MKTIME(calendar);
     }
     return next_value;
     return_error: return -1;
@@ -513,13 +510,13 @@ static int find_prev(uint8_t* bits, int max, int value, int offset, struct tm* c
     int next_value = prev_set_bit(bits, value+offset, 0)-offset;
     /* roll under if needed */
     if (next_value < 0) {
-        add_to_field(calendar, nextField, -1); MKTIME(calendar);
-        reset_max(calendar, field); MKTIME(calendar);
+        add_to_field(calendar, nextField, -1);  MKTIME(calendar);
+        reset_max(calendar, field);             MKTIME(calendar);
         next_value = prev_set_bit(bits, max - 1, value);
     }
     if (next_value < 0 || next_value != value) {
         set_field(calendar, field, next_value); MKTIME(calendar);
-        reset_all_max(calendar, lower_orders); MKTIME(calendar);
+        reset_all_max(calendar, lower_orders);  MKTIME(calendar);
     }
     return next_value;
     return_error: return -1;
@@ -737,8 +734,8 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
     ParserContext context;
     if (!error) error = &err_local;
     *error = NULL;
-    if (!expression) CRON_ERROR("Invalid NULL expression");
-    if (!target)     CRON_ERROR("Invalid NULL target");
+    if (!expression)                                                        CRON_ERROR("Invalid NULL expression");
+    if (!target)                                                                CRON_ERROR("Invalid NULL target");
     if ('@' == *expression) {
         expression++;
              if (!strcmp("annually", expression) || !strcmp("yearly", expression))   expression = "0 0 0 1 1 *";
