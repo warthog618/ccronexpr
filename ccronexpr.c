@@ -501,7 +501,7 @@ static int find_nextprev(uint8_t* bits, int max, int value, int value_offset, st
     }
     if (next_value < 0 || next_value != value) {
         if (offset > 0) reset_all_min(calendar, lower_orders) else reset_all_max(calendar, lower_orders);
-        set_field(calendar, field, next_value); MKTIME(calendar);
+        set_field(calendar, field, next_value < 0 ? 0 : next_value); MKTIME(calendar);
     }
     return next_value; return_error: return -1;
 }
