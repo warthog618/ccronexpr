@@ -503,7 +503,7 @@ static int find_nextprev(uint8_t* bits, int max, int value, int value_offset, st
         if (offset > 0) reset_all_min(calendar, lower_orders) else reset_all_max(calendar, lower_orders);
         set_field(calendar, field, next_value < 0 ? 0 : next_value); MKTIME(calendar);
     }
-    return next_value; return_error: return -1;
+    return next_value < 0 ? 0 : next_value; return_error: return -1;
 }
 
 static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* day) {
