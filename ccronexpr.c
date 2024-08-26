@@ -395,7 +395,7 @@ static void Segment(ParserContext* context) {
             case CRON_CF_DAY_OF_MONTH:
                 *context->target->day_in_month = -1;
                 switch (context->type) {
-                case T_MINUS: case T_NUMBER: *context->target->day_in_month += (int8_t)Number(context); break;
+                case T_MINUS: case T_NUMBER: *context->target->day_in_month = (int8_t)((int)*context->target->day_in_month + Number(context)); break;
                 case T_W:
                     if (CRON_CF_DAY_OF_MONTH == context->field_type) {
                         token_next(context);
