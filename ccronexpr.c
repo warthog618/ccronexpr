@@ -585,27 +585,20 @@ static int do_nextprev(cron_expr* expr, struct tm* calendar, int dot, int offset
 
 static int generate_field(char *dest, uint8_t *bits, int min, int max, int offset, int buffer_len) {
     char buf[32];
-    int first = 1, from = -1, i, bit, len = 0;
+    int first = 1, from = -1, len = 0, i, bit;
 
-    for (i = min; i < max; i++) {
-        bit = cron_get_bit(bits, i + offset);
-        if (bit) {
-            if (from == -1) from = i;
-        } else if (from != -1) {
-            if (first) first = 0; else STRCATC(dest, ",", 1);
-            if (from == i - 1) len += sprintf(buf, "%d", from);
+    for (i = min; i <= max; i++) {
+        bit = (i < max) ? cron_get_bit(bits, i + offset) : 0;
+        if (bit) { if (from == -1) from = i; }
+        else if (from != -1) {
+            if (!first) STRCATC(dest, ",", 1);
+            first = 0;
+            if (from == min && i - 1 == max - 1) len += sprintf(buf, "*");
+            else if (from == i - 1) len += sprintf(buf, "%d", from);
             else len += sprintf(buf, "%d-%d", from, i - 1);
             STRCATC(dest, buf, 0);
             from = -1;
         }
-    }
-    if (from == i - 1) {
-        if (!first) STRCATC(dest, ",", 1);
-        STRCATC(dest, buf, sprintf(buf, "%d", from));
-    } else if (from == min && i == max) STRCATC(dest, "*", 1);
-    else if (from != -1) {
-        if (!first) STRCATC(dest, ",", 1);
-        STRCATC(dest, buf, sprintf(buf, "%d-%d", from, i - 1));
     }
     return len;
 }
