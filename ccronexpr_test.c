@@ -843,6 +843,9 @@ void test_parse() {
     check_expr_valid("0 0 12 ? 1,3,5,7,9,11 *"); /* Every odd month at noon. */
     check_expr_valid("0 0 0 ? 2,4,6,8,10,12 *"); /* Every even month at midnight. */
     check_expr_valid("0 0 12 * * ? 2027"); /* Every day at noon in the year 2027. */
+ 
+    check_expr_valid("0 6,9,12 0 * 4,6,8 *");
+    check_expr_valid("0 6,9,12,16,20,24 0 * 2,4,6,8,9,10 *");
 }
 
 void test_bits() {
