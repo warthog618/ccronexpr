@@ -142,8 +142,8 @@ struct tm* cron_time(time_t* date, struct tm* out) {
 #define GET_BIT(idx)                    (uint8_t) (idx % 8)
 #define MKTIME(calendar)                if (CRON_INVALID_INSTANT == cron_mktime(calendar)) goto return_error;
 #define STRCATC(dest, buf, inc_len)     do { len += inc_len; if (len > buffer_len) return -1; strcat(dest, buf); } while (0)
-#define GFC(dest, bits, min, max, offset, buffer_len) \
-                                        { tmp = generate_field(dest, bits, min, max, offset, buffer_len); if (tmp < 0) return tmp; else len += tmp; }
+#define GFC(dest, bits, min, max, offset, overflow, buffer_len) \
+                                        { tmp = generate_field(dest, bits, min, max, offset, overflow, buffer_len); if (tmp < 0) return tmp; else len += tmp; }
 
 void    cron_set_bit(      uint8_t* rbyte, int idx) { rbyte[GET_BYTE(idx)] |= (uint8_t) (1 << GET_BIT(idx)); }
 void    cron_del_bit(      uint8_t* rbyte, int idx) { rbyte[GET_BYTE(idx)] &= (uint8_t)~(1 << GET_BIT(idx)); }
@@ -583,24 +583,42 @@ static int do_nextprev(cron_expr* expr, struct tm* calendar, int dot, int offset
     return update_value >= 0 ? 0 : update_value;
 }
 
-static int generate_field(char *dest, uint8_t *bits, int min, int max, int offset, int buffer_len) {
-    char buf[32];
-    int first = 1, from = -1, len = 0, i, bit;
-
-    for (i = min; i <= max; i++) {
-        bit = (i < max) ? cron_get_bit(bits, i + offset) : 0;
-        if (bit) { if (from == -1) from = i; }
-        else if (from != -1) {
-            if (!first) STRCATC(dest, ",", 1);
-            first = 0;
-            if (from == min && i - 1 == max - 1) len += sprintf(buf, "*");
-            else if (from == i - 1) len += sprintf(buf, "%d", from);
-            else len += sprintf(buf, "%d-%d", from, i - 1);
-            STRCATC(dest, buf, 0);
-            from = -1;
+static int generate_field(char *dest, uint8_t *bits, int min, int max, int offset, int overflow, int buffer_len) {
+    char  buf[32];
+    int len = 0, first = 1, i, fs = -1, ls = -1, d = -1, n = 0, from, dt;
+    for (i = min; i < max; i++) {
+        if (cron_get_bit(bits, i + offset)) {
+            n++;
+            if (fs == -1) fs = i;
+            else {
+                dt = i - ls;
+                if (d == -1) d = dt;
+                else if (d != dt) { d = -1; break; }
+            }
+            ls = i;
         }
     }
+    if (n == max - min) len += sprintf(buf, "*");
+    else if (d < 2) goto values;
+    else if (fs == min && ls + d > max - 1) len += sprintf(buf, "*/%d", d);
+    else if (n < 3) goto values;
+    else if (((max + overflow - fs - 1) / d) + 1 != n) len += sprintf(buf, "%d-%d/%d", fs, ls, d);
+    else len += sprintf(buf, "%d/%d", fs, d);
+    STRCATC(dest, buf, 0);
     return len;
+values:
+        from = -1;
+        for (i = min; i <= max; i++) {
+            if ((i < max) ? cron_get_bit(bits, i + offset) : 0) { if (from == -1) from = i; }
+            else if (from != -1) {
+                if (!first) STRCATC(dest, ",", 1);
+                first = 0;
+                len += from == i-1 ? sprintf(buf, "%d", from) : sprintf(buf, "%d-%d", from, i-1);
+                from = -1;
+                STRCATC(dest, buf, 0);
+            }
+        }
+        return len;
 }
 
 int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron_len, const char **error) {
@@ -619,12 +637,12 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
                 break;
             }
         }
-        GFC(buffer, source->seconds, 0, CRON_MAX_SECONDS + (leap ? CRON_MAX_LEAP_SECONDS : 0), 0, buffer_len - len);
+        GFC(buffer, source->seconds, 0, CRON_MAX_SECONDS + (leap ? CRON_MAX_LEAP_SECONDS : 0), 0, 0, buffer_len - len);
         STRCATC(buffer, " ", 1);
     }
-    GFC(buffer, source->minutes, 0, CRON_MAX_MINUTES, 0, buffer_len - len);
+    GFC(buffer, source->minutes, 0, CRON_MAX_MINUTES, 0, 0, buffer_len - len);
     STRCATC(buffer, " ", 1);
-    GFC(buffer, source->hours, 0, CRON_MAX_HOURS, 0, buffer_len - len);
+    GFC(buffer, source->hours, 0, CRON_MAX_HOURS, 0, 0, buffer_len - len);
     STRCATC(buffer, " ", 1);
     if (cron_get_bit(source->flags, 0)) {
         STRCATC(buffer, "L", 1);
@@ -632,28 +650,24 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
     } else if (cron_get_bit(source->flags, 1)) STRCATC(buffer, "LW", 2);
     else if (cron_get_bit(source->flags, 2)) STRCATC(buffer, buf, sprintf(buf, "%dW", *source->day_in_month));
     else if (*source->day_in_month != 0) STRCATC(buffer, "?", 1);
-    else GFC(buffer, source->days_of_month, 1, CRON_MAX_DAYS_OF_MONTH, 0, buffer_len - len);
+    else GFC(buffer, source->days_of_month, 1, CRON_MAX_DAYS_OF_MONTH, 0, 0, buffer_len - len);
     STRCATC(buffer, " ", 1);
-    GFC(buffer, source->months, 1, CRON_MAX_MONTHS + 1, -1, buffer_len - len);
+    GFC(buffer, source->months, 1, CRON_MAX_MONTHS + 1, -1, 0, buffer_len - len);
     STRCATC(buffer, " ", 1);
-    if (cron_get_bit(&days_of_week, 0)) {
-        cron_set_bit(&days_of_week, 7);
-        cron_del_bit(&days_of_week, 0);
-    }
     if (*source->flags) STRCATC(buffer, "?", 1);
     else {
         if (*source->day_in_month != 0) {
-            GFC(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0, buffer_len - len);
+            GFC(buffer, &days_of_week, 0, CRON_MAX_DAYS_OF_WEEK, 0, 1, buffer_len - len);
             if (*source->day_in_month == -1) STRCATC(buffer, "L", 1);
             else STRCATC(buffer, buf, sprintf(buf, "#%d", *source->day_in_month));
-        } else GFC(buffer, &days_of_week, 1, CRON_MAX_DAYS_OF_WEEK+1, 0, buffer_len - len);
+        } else GFC(buffer, &days_of_week, 0, CRON_MAX_DAYS_OF_WEEK, 0, 1, buffer_len - len);
     }
 #ifndef CRON_DISABLE_YEARS
     if (cron_len > 6) {
         if (cron_get_bit(source->years, EXPR_YEARS_LENGTH*8-1)) STRCATC(buffer, " *", 2);
         else {
             STRCATC(buffer, " ", 1);
-            GFC(buffer, source->years, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS, buffer_len - len);
+            GFC(buffer, source->years, CRON_MIN_YEARS, CRON_MAX_YEARS, -CRON_MIN_YEARS, 0, buffer_len - len);
         }
     }
 #endif
