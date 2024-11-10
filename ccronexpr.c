@@ -608,8 +608,8 @@ static int generate_field(char *dest, uint8_t *bits, int min, int max, int offse
     return len;
 values:
         from = -1;
-        for (i = min; i <= max; i++) {
-            if ((i < max) ? cron_get_bit(bits, i + offset) : 0) { if (from == -1) from = i; }
+        for (i = fs; i <= max; i++) {
+            if (i < max ? cron_get_bit(bits, i + offset) : 0) { if (from == -1) from = i; }
             else if (from != -1) {
                 if (!first) STRCATC(dest, ",", 1);
                 first = 0;
