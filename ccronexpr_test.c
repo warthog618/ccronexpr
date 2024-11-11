@@ -259,6 +259,7 @@ void check_expr_valid_line(const char* pattern, int line) {
     assert(crons_equal(&parsed1, &parsed2));
 
     assert(!err);
+    free(buffer);
 }
 
 void test_expr() {
