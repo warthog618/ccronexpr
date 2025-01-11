@@ -494,8 +494,7 @@ static void Fields(ParserContext* context, int len) {
  */
 static int find_nextprev(uint8_t* bits, int max, int value, int value_offset, struct tm* calendar, int field, int nextField, uint8_t* lower_orders, int offset) {
     int next_value = (offset > 0 ? next_set_bit(bits, max, value+value_offset) : prev_set_bit(bits, value+value_offset, 0));
-    if(next_value == -1 && field == CRON_CF_YEAR)
-        return -1;
+    if(next_value == -1 && field == CRON_CF_YEAR) return -1;
     next_value -= value_offset;
     /* roll under if needed */
     if (next_value < 0) {
@@ -535,13 +534,9 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
     while (find_day_condition(calendar, days_of_month, dim, dom, days_of_week, dow, flags, &day) && count++ < max) {
         if (offset > 0) reset_all_min(calendar, resets) else reset_all_max(calendar, resets);
         add_to_field(calendar, CRON_CF_DAY_OF_MONTH, offset); MKTIME(calendar);
-
-        if(offset < 0 && (calendar->tm_year < CRON_MIN_YEARS - YEAR_OFFSET))
-            goto return_error;
-
-        if(offset > 0 && (calendar->tm_year > CRON_MAX_YEARS - YEAR_OFFSET))
-            goto return_error;
-
+        /* These two conditions may be unecessary. Verify in the future. */
+        if(offset < 0 && (calendar->tm_year < CRON_MIN_YEARS - YEAR_OFFSET)) goto return_error;
+        if(offset > 0 && (calendar->tm_year > CRON_MAX_YEARS - YEAR_OFFSET)) goto return_error;
         dom = calendar->tm_mday;
         dow = calendar->tm_wday;
         if (year != calendar->tm_year) {
@@ -586,7 +581,7 @@ static int do_nextprev(cron_expr* expr, struct tm* calendar, int dot, int offset
         else break;
 #else
         if (cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) break;
-        RF(CRON_CF_MONTH);  else continue;
+        RF(CRON_CF_MONTH);        else continue;
         RI(CRON_CF_YEAR, expr->years, YEAR_OFFSET-CRON_MIN_YEARS, CRON_MAX_YEARS-CRON_MIN_YEARS, CRON_CF_NEXT);
         if (update_value < 0 || value == update_value) break;
 #endif
