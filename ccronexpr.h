@@ -38,8 +38,7 @@ extern "C" {
 
 #include <stdint.h> /*added for use if uint*_t data types*/
 
-
-#define CRON_INVALID_INSTANT ((time_t) -1)
+#define CRON_INVALID_INSTANT ((time_t)-1)
 
 /**
  * Parsed cron expression
@@ -54,7 +53,7 @@ typedef struct {
     uint8_t days_of_week[1];
     uint8_t days_of_month[4];
     uint8_t months[2];
-    int8_t  day_in_month[1];
+    int8_t day_in_month[1];
     /**
      * Flags:
      * 0 last day of the month
@@ -78,7 +77,7 @@ typedef struct {
  *        error message in case of error. Will be set to NULL on success.
  *        The error message should NOT be freed by client.
  */
-void cron_parse_expr(const char* expression, cron_expr* target, const char** error);
+void cron_parse_expr(const char *expression, cron_expr *target, const char **error);
 
 /**
  * Uses the specified expression to calculate the next 'fire' date after
@@ -90,7 +89,7 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
  * @param date start date to start calculation from
  * @return next 'fire' date in case of success, '((time_t) -1)' in case of error.
  */
-time_t cron_next(cron_expr* expr, time_t date);
+time_t cron_next(cron_expr *expr, time_t date);
 
 /**
  * Uses the specified expression to calculate the previous 'fire' date after
@@ -102,7 +101,7 @@ time_t cron_next(cron_expr* expr, time_t date);
  * @param date start date to start calculation from
  * @return previous 'fire' date in case of success, '((time_t) -1)' in case of error.
  */
-time_t cron_prev(cron_expr* expr, time_t date);
+time_t cron_prev(cron_expr *expr, time_t date);
 
 /**
  * Generate cron expression from cron_expr structure

@@ -22,10 +22,10 @@
  */
 
 #include <assert.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "ccronexpr.h"
 
@@ -39,20 +39,20 @@
 #define DATE_FORMAT "%Y-%m-%d_%H:%M:%S"
 
 #ifndef ARRAY_LEN
-#define ARRAY_LEN(x) sizeof(x)/sizeof(x[0])
+#define ARRAY_LEN(x) sizeof(x) / sizeof(x[0])
 #endif
 
 /* declared in cronexpr.c */
-time_t cron_mktime(struct tm* tm);
+time_t cron_mktime(struct tm *tm);
 
 /**
  * uint8_t* replace char* for storing hit dates, set_bit and get_bit are used as handlers
  */
-uint8_t cron_get_bit(const uint8_t* rbyte, int idx);
-void cron_set_bit(uint8_t* rbyte, int idx);
-void cron_del_bit(uint8_t* rbyte, int idx);
+uint8_t cron_get_bit(const uint8_t *rbyte, int idx);
+void cron_set_bit(uint8_t *rbyte, int idx);
+void cron_del_bit(uint8_t *rbyte, int idx);
 
-static int crons_equal(cron_expr* cr1, cron_expr* cr2) {
+static int crons_equal(cron_expr *cr1, cron_expr *cr2) {
     unsigned int i;
     for (i = 0; i < ARRAY_LEN(cr1->seconds); i++) {
         if (cr1->seconds[i] != cr2->seconds[i]) {
@@ -122,12 +122,14 @@ int one_dec_num(const char ch) {
 
 int extract_digits(const char *str, int *digit_count) {
     int num = 0;
-    if (!str || !digit_count) return 0;
+    if (!str || !digit_count)
+        return 0;
     while (*str) {
         (*digit_count)++;
         if (*str >= '0' && *str <= '9') {
             num = num * 10 + (*str - '0');
-        } else break;
+        } else
+            break;
         str++;
     }
     return num;
@@ -136,7 +138,7 @@ int extract_digits(const char *str, int *digit_count) {
 /* strptime is not available in msvc */
 /* 2012-07-01_09:53:50 */
 /* 0123456789012345678 */
-void poors_mans_strptime(const char* str, struct tm* cal) {
+void poors_mans_strptime(const char *str, struct tm *cal) {
     int count = 0;
     assert(cal != NULL);
     memset(cal, 0, sizeof(struct tm));
@@ -151,21 +153,24 @@ void poors_mans_strptime(const char* str, struct tm* cal) {
     cal->tm_isdst = -1;
 }
 
-typedef time_t (*cron_find_fn)(cron_expr*, time_t);
+typedef time_t (*cron_find_fn)(cron_expr *, time_t);
 
-int count_fields(const char* str, char del) {
+int count_fields(const char *str, char del) {
     size_t count = 0;
-    if (!str) return -1;
+    if (!str)
+        return -1;
     while ((str = strchr(str, del)) != NULL) {
         count++;
-        do str++; while (del == *str);
+        do
+            str++;
+        while (del == *str);
     }
     return (int)count + 1;
 }
 
-#define check_invalid_instant(fn_fn,pattern,initial) check_fn_invalid_instant_line(fn_fn, pattern, initial, __LINE__)
-void check_fn_invalid_instant_line(cron_find_fn fn, const char* pattern, const char* initial, int line) {
-    const char* err = NULL;
+#define check_invalid_instant(fn_fn, pattern, initial) check_fn_invalid_instant_line(fn_fn, pattern, initial, __LINE__)
+void check_fn_invalid_instant_line(cron_find_fn fn, const char *pattern, const char *initial, int line) {
+    const char *err = NULL;
     const int len = count_fields(pattern, ' ');
     cron_expr parsed1, parsed2;
     /*printf("Pattern: %s\n", pattern);**/
@@ -182,9 +187,9 @@ void check_fn_invalid_instant_line(cron_find_fn fn, const char* pattern, const c
     printf("No prev/next for: %s\n", initial);
 }
 
-#define check_fn(fn_fn,pattern,initial,expected) check_fn_line(fn_fn, pattern, initial, expected, __LINE__)
-void check_fn_line(cron_find_fn fn, const char* pattern, const char* initial, const char* expected, int line) {
-    const char* err = NULL;
+#define check_fn(fn_fn, pattern, initial, expected) check_fn_line(fn_fn, pattern, initial, expected, __LINE__)
+void check_fn_line(cron_find_fn fn, const char *pattern, const char *initial, const char *expected, int line) {
+    const char *err = NULL;
     const int len = count_fields(pattern, ' ');
     cron_expr parsed1, parsed2;
     /*printf("Pattern: %s\n", pattern);**/
@@ -196,16 +201,16 @@ void check_fn_line(cron_find_fn fn, const char* pattern, const char* initial, co
     assert(-1 != dateinit);
     time_t datenext = fn(&parsed1, dateinit);
 #ifdef CRON_USE_LOCAL_TIME
-    struct tm* calnext = localtime(&datenext);
+    struct tm *calnext = localtime(&datenext);
 #else
-    struct tm* calnext = gmtime(&datenext);
+    struct tm *calnext = gmtime(&datenext);
 #endif
     assert(calnext);
-    char* buffer = (char*) malloc(512);
+    char *buffer = (char *)malloc(512);
     memset(buffer, 0, 512);
     strftime(buffer, 512, DATE_FORMAT, calnext);
     printf("parsed: %s\n", pattern);
-    if (0 != strcmp(expected, buffer+(buffer[0] == '+' ? 1 : 0))) {
+    if (0 != strcmp(expected, buffer + (buffer[0] == '+' ? 1 : 0))) {
         printf("Line: %d\n", line);
         printf("Pattern: %s\n", pattern);
         printf("Initial: %s\n", initial);
@@ -224,7 +229,7 @@ void check_fn_line(cron_find_fn fn, const char* pattern, const char* initial, co
     free(buffer);
 }
 
-void check_same(const char* expr1, const char* expr2) {
+void check_same(const char *expr1, const char *expr2) {
     cron_expr parsed1;
     cron_parse_expr(expr1, &parsed1, NULL);
     cron_expr parsed2;
@@ -244,8 +249,8 @@ void check_calc_invalid() {
     assert(CRON_INVALID_INSTANT == res);
 }
 
-void check_expr_invalid(const char* pattern) {
-    const char* err = NULL;
+void check_expr_invalid(const char *pattern) {
+    const char *err = NULL;
     const int len = count_fields(pattern, ' ');
     cron_expr parsed1, parsed2;
     cron_parse_expr(pattern, &parsed1, &err);
@@ -257,8 +262,8 @@ void check_expr_invalid(const char* pattern) {
 }
 
 #define check_expr_valid(pattern) check_expr_valid_line(pattern, __LINE__)
-void check_expr_valid_line(const char* pattern, int line) {
-    const char* err = NULL;
+void check_expr_valid_line(const char *pattern, int line) {
+    const char *err = NULL;
     const int len = count_fields(pattern, ' ');
     cron_expr parsed1, parsed2;
     cron_parse_expr(pattern, &parsed1, &err);
@@ -266,7 +271,7 @@ void check_expr_valid_line(const char* pattern, int line) {
     if (err) {
         printf("check_expr_invalid: %s\n", err);
     }
-    char* buffer = (char*) malloc(512);
+    char *buffer = (char *)malloc(512);
     memset(buffer, 0, 512);
     assert(cron_generate_expr(&parsed1, buffer, 512, len, &err) > 0);
     if (0 != strcmp(pattern, buffer)) {
@@ -282,7 +287,7 @@ void check_expr_valid_line(const char* pattern, int line) {
 }
 
 void test_expr() {
-    char* tz = getenv("TZ");
+    char *tz = getenv("TZ");
 
 #ifdef CRON_USE_LOCAL_TIME
     /* DST test */
@@ -637,11 +642,11 @@ void test_expr() {
     check_fn(cron_prev, "30 50 23 20,21,22 * *", "2023-07-21_12:34:56", "2023-07-20_23:50:30");
     check_fn(cron_prev, "30 50 23 20,21,22 * *", "2023-07-22_12:34:56", "2023-07-21_23:50:30");
     check_fn(cron_prev, "30 50 23 20,21,22 * *", "2023-07-23_12:34:56", "2023-07-22_23:50:30");
-    
+
 #ifndef CRON_DISABLE_YEARS
     check_fn(cron_prev, "30 50 23 20,21,22 * * 2023", "2024-07-23_12:34:56", "2023-12-22_23:50:30");
     check_fn(cron_next, "30 50 23 20,21,22 * * 2023", "2022-07-23_12:34:56", "2023-01-20_23:50:30");
-    
+
     check_invalid_instant(cron_prev, "30 50 23 20,21,22 * * 2023", "2022-07-23_12:34:56");
     check_invalid_instant(cron_next, "30 50 23 20,21,22 * * 2023", "2024-07-23_12:34:56");
 #endif
@@ -703,175 +708,179 @@ void test_parse() {
 
     /* Source: https://www.freeformatter.com/cron-expression-generator-quartz.html */
 
-    check_expr_valid("* * * ? * *");                /* Every second */
-    check_expr_valid("0 * * ? * *");                /* Every minute */
-    check_expr_valid("0 */2 * ? * *");              /* Every even minute */
-    check_expr_valid("0 1/2 * ? * *");              /* Every uneven minute */
-    check_expr_valid("0 */2 * ? * *");              /* Every 2 minutes */
-    check_expr_valid("0 */3 * ? * *");              /* Every 3 minutes */
-    check_expr_valid("0 */4 * ? * *");              /* Every 4 minutes */
-    check_expr_valid("0 */5 * ? * *");              /* Every 5 minutes */
-    check_expr_valid("0 */10 * ? * *");             /* Every 10 minutes */
-    check_expr_valid("0 */15 * ? * *");             /* Every 15 minutes */
-    check_expr_valid("0 */30 * ? * *");             /* Every 30 minutes */
-    check_expr_valid("0 15,30,45 * ? * *");         /* Every hour at minutes 15, 30 and 45 */
-    check_expr_valid("0 0 * ? * *");                /* Every hour */
-    check_expr_valid("0 0 */2 ? * *");              /* Every hour */
-    check_expr_valid("0 0 0/2 ? * *");              /* Every even hour */
-    check_expr_valid("0 0 1/2 ? * *");              /* Every uneven hour */
-    check_expr_valid("0 0 */3 ? * *");              /* Every three hours */
-    check_expr_valid("0 0 */4 ? * *");              /* Every four hours */
-    check_expr_valid("0 0 */6 ? * *");              /* Every six hours */
-    check_expr_valid("0 0 */8 ? * *");              /* Every eight hours */
-    check_expr_valid("0 0 */12 ? * *");             /* Every twelve hours */
-    check_expr_valid("0 0 0 * * ?");                /* Every day at midnight - 12am */
-    check_expr_valid("0 0 1 * * ?");                /* Every day at 1am */
-    check_expr_valid("0 0 6 * * ?");                /* Every day at 6am */
-    check_expr_valid("0 0 12 * * ?");               /* Every day at noon - 12pm */
-    check_expr_valid("0 0 12 * * ?");               /* Every day at noon - 12pm */
-    check_expr_valid("0 0 12 ? * SUN");             /* Every Sunday at noon */
-    check_expr_valid("0 0 12 ? * MON");             /* Every Monday at noon */
-    check_expr_valid("0 0 12 ? * TUE");             /* Every Tuesday at noon */
-    check_expr_valid("0 0 12 ? * WED");             /* Every Wednesday at noon */
-    check_expr_valid("0 0 12 ? * THU");             /* Every Thursday at noon */
-    check_expr_valid("0 0 12 ? * FRI");             /* Every Friday at noon */
-    check_expr_valid("0 0 12 ? * SAT");             /* Every Saturday at noon */
-    check_expr_valid("0 0 12 ? * MON-FRI");         /* Every Weekday at noon */
-    check_expr_valid("0 0 12 ? * SUN,SAT");         /* Every Saturday and Sunday at noon */
-    check_expr_valid("0 0 12 */7 * ?");             /* Every 7 days at noon */
-    check_expr_valid("0 0 12 1 * ?");               /* Every month on the 1st, at noon */
-    check_expr_valid("0 0 12 2 * ?");               /* Every month on the 2nd, at noon */
-    check_expr_valid("0 0 12 15 * ?");              /* Every month on the 15th, at noon */
-    check_expr_valid("0 0 12 1/2 * ?");             /* Every 2 days starting on the 1st of the month, at noon */
-    check_expr_valid("0 0 12 1/4 * ?");             /* Every 4 days staring on the 1st of the month, at noon */
-    check_expr_valid("0 0 12 L * ?");               /* Every month on the last day of the month, at noon */
-    check_expr_valid("0 0 12 L-2 * ?");             /* Every month on the second to last day of the month, at noon */
-    check_expr_valid("0 0 12 LW * ?");              /* Every month on the last weekday, at noon */
+    check_expr_valid("* * * ? * *");        /* Every second */
+    check_expr_valid("0 * * ? * *");        /* Every minute */
+    check_expr_valid("0 */2 * ? * *");      /* Every even minute */
+    check_expr_valid("0 1/2 * ? * *");      /* Every uneven minute */
+    check_expr_valid("0 */2 * ? * *");      /* Every 2 minutes */
+    check_expr_valid("0 */3 * ? * *");      /* Every 3 minutes */
+    check_expr_valid("0 */4 * ? * *");      /* Every 4 minutes */
+    check_expr_valid("0 */5 * ? * *");      /* Every 5 minutes */
+    check_expr_valid("0 */10 * ? * *");     /* Every 10 minutes */
+    check_expr_valid("0 */15 * ? * *");     /* Every 15 minutes */
+    check_expr_valid("0 */30 * ? * *");     /* Every 30 minutes */
+    check_expr_valid("0 15,30,45 * ? * *"); /* Every hour at minutes 15, 30 and 45 */
+    check_expr_valid("0 0 * ? * *");        /* Every hour */
+    check_expr_valid("0 0 */2 ? * *");      /* Every hour */
+    check_expr_valid("0 0 0/2 ? * *");      /* Every even hour */
+    check_expr_valid("0 0 1/2 ? * *");      /* Every uneven hour */
+    check_expr_valid("0 0 */3 ? * *");      /* Every three hours */
+    check_expr_valid("0 0 */4 ? * *");      /* Every four hours */
+    check_expr_valid("0 0 */6 ? * *");      /* Every six hours */
+    check_expr_valid("0 0 */8 ? * *");      /* Every eight hours */
+    check_expr_valid("0 0 */12 ? * *");     /* Every twelve hours */
+    check_expr_valid("0 0 0 * * ?");        /* Every day at midnight - 12am */
+    check_expr_valid("0 0 1 * * ?");        /* Every day at 1am */
+    check_expr_valid("0 0 6 * * ?");        /* Every day at 6am */
+    check_expr_valid("0 0 12 * * ?");       /* Every day at noon - 12pm */
+    check_expr_valid("0 0 12 * * ?");       /* Every day at noon - 12pm */
+    check_expr_valid("0 0 12 ? * SUN");     /* Every Sunday at noon */
+    check_expr_valid("0 0 12 ? * MON");     /* Every Monday at noon */
+    check_expr_valid("0 0 12 ? * TUE");     /* Every Tuesday at noon */
+    check_expr_valid("0 0 12 ? * WED");     /* Every Wednesday at noon */
+    check_expr_valid("0 0 12 ? * THU");     /* Every Thursday at noon */
+    check_expr_valid("0 0 12 ? * FRI");     /* Every Friday at noon */
+    check_expr_valid("0 0 12 ? * SAT");     /* Every Saturday at noon */
+    check_expr_valid("0 0 12 ? * MON-FRI"); /* Every Weekday at noon */
+    check_expr_valid("0 0 12 ? * SUN,SAT"); /* Every Saturday and Sunday at noon */
+    check_expr_valid("0 0 12 */7 * ?");     /* Every 7 days at noon */
+    check_expr_valid("0 0 12 1 * ?");       /* Every month on the 1st, at noon */
+    check_expr_valid("0 0 12 2 * ?");       /* Every month on the 2nd, at noon */
+    check_expr_valid("0 0 12 15 * ?");      /* Every month on the 15th, at noon */
+    check_expr_valid("0 0 12 1/2 * ?");     /* Every 2 days starting on the 1st of the month, at noon */
+    check_expr_valid("0 0 12 1/4 * ?");     /* Every 4 days staring on the 1st of the month, at noon */
+    check_expr_valid("0 0 12 L * ?");       /* Every month on the last day of the month, at noon */
+    check_expr_valid("0 0 12 L-2 * ?");     /* Every month on the second to last day of the month, at noon */
+    check_expr_valid("0 0 12 LW * ?");      /* Every month on the last weekday, at noon */
 
-    /*check_expr_valid("0 0 12 1L * ?"); */             /* Every month on the last Sunday, at noon */
-    /*check_expr_valid("0 0 12 2L * ?"); */             /* Every month on the last Monday, at noon */
-    /*check_expr_valid("0 0 12 6L * ?"); */             /* Every month on the last Friday, at noon */
+    /*check_expr_valid("0 0 12 1L * ?"); */ /* Every month on the last Sunday, at noon */
+    /*check_expr_valid("0 0 12 2L * ?"); */ /* Every month on the last Monday, at noon */
+    /*check_expr_valid("0 0 12 6L * ?"); */ /* Every month on the last Friday, at noon */
 
-    check_expr_valid("0 0 12 ? * 1L");              /* Every month on the last Sunday, at noon */
-    check_expr_valid("0 0 12 ? * 2L");              /* Every month on the last Monday, at noon */
-    check_expr_valid("0 0 12 ? * 6L");              /* Every month on the last Friday, at noon */
+    check_expr_valid("0 0 12 ? * 1L"); /* Every month on the last Sunday, at noon */
+    check_expr_valid("0 0 12 ? * 2L"); /* Every month on the last Monday, at noon */
+    check_expr_valid("0 0 12 ? * 6L"); /* Every month on the last Friday, at noon */
 
-    check_expr_valid("0 0 12 1W * ?");              /* Every month on the nearest Weekday to the 1st of the month, at noon */
-    check_expr_valid("0 0 12 15W * ?");             /* Every month on the nearest Weekday to the 15th of the month, at noon */
-    check_expr_valid("0 0 12 ? * 2#1");             /* Every month on the first Monday of the Month, at noon */
-    check_expr_valid("0 0 12 ? * 6#1");             /* Every month on the first Friday of the Month, at noon */
-    check_expr_valid("0 0 12 ? * 2#2");             /* Every month on the second Monday of the Month, at noon */
-    check_expr_valid("0 0 12 ? * 5#3");             /* Every month on the third Thursday of the Month, at noon - 12pm */
-    check_expr_valid("0 0 12 ? JAN *");             /* Every day at noon in January only */
-    check_expr_valid("0 0 12 ? JUN *");             /* Every day at noon in June only */
-    check_expr_valid("0 0 12 ? JAN,JUN *");         /* Every day at noon in January and June */
-    check_expr_valid("0 0 12 ? DEC *");             /* Every day at noon in December only */
+    check_expr_valid("0 0 12 1W * ?");      /* Every month on the nearest Weekday to the 1st of the month, at noon */
+    check_expr_valid("0 0 12 15W * ?");     /* Every month on the nearest Weekday to the 15th of the month, at noon */
+    check_expr_valid("0 0 12 ? * 2#1");     /* Every month on the first Monday of the Month, at noon */
+    check_expr_valid("0 0 12 ? * 6#1");     /* Every month on the first Friday of the Month, at noon */
+    check_expr_valid("0 0 12 ? * 2#2");     /* Every month on the second Monday of the Month, at noon */
+    check_expr_valid("0 0 12 ? * 5#3");     /* Every month on the third Thursday of the Month, at noon - 12pm */
+    check_expr_valid("0 0 12 ? JAN *");     /* Every day at noon in January only */
+    check_expr_valid("0 0 12 ? JUN *");     /* Every day at noon in June only */
+    check_expr_valid("0 0 12 ? JAN,JUN *"); /* Every day at noon in January and June */
+    check_expr_valid("0 0 12 ? DEC *");     /* Every day at noon in December only */
     check_expr_valid("0 0 12 ? JAN,FEB,MAR,APR *"); /* Every day at noon in January, February, March and April */
     check_expr_valid("0 0 12 ? 9-12 *");            /* Every day at noon between September and December */
 
     /* ChatGPT generated inputs for further testing. */
 
-    check_expr_valid("0 0 12 * * ?"); /* Every day at 12 PM (noon). */
-    check_expr_valid("0 15 10 ? * *"); /* Every day at 10:15 AM. */
-    check_expr_valid("0 15 10 * * ?"); /* Every day at 10:15 AM. */
-    check_expr_valid("0 15 10 * * ? *"); /* Every day at 10:15 AM. */
-    check_expr_valid("0 15 10 * * ? 2023"); /* Every day at 10:15 AM during the year 2023. */
-    check_expr_valid("0 * 14 * * ?"); /* Every minute starting at 2 PM and ending at 2:59 PM, every day. */
-    check_expr_valid("0 0/5 14 * * ?"); /* Every 5 minutes starting at 2 PM and ending at 2:55 PM, every day. */
-    check_expr_valid("0 0/5 14,18 * * ?"); /* Every 5 minutes starting at 2 PM and ending at 2:55 PM, AND every 5 minutes starting at 6 PM and ending at 6:55 PM, every day. */
-    check_expr_valid("0 0-5 14 * * ?"); /* Every minute starting at 2 PM and ending at 2:05 PM, every day. */
-    check_expr_valid("0 10,44 14 ? 3 WED"); /* Every Wednesday in March at 2:10 PM and 2:44 PM. */
+    check_expr_valid("0 0 12 * * ?");        /* Every day at 12 PM (noon). */
+    check_expr_valid("0 15 10 ? * *");       /* Every day at 10:15 AM. */
+    check_expr_valid("0 15 10 * * ?");       /* Every day at 10:15 AM. */
+    check_expr_valid("0 15 10 * * ? *");     /* Every day at 10:15 AM. */
+    check_expr_valid("0 15 10 * * ? 2023");  /* Every day at 10:15 AM during the year 2023. */
+    check_expr_valid("0 * 14 * * ?");        /* Every minute starting at 2 PM and ending at 2:59 PM, every day. */
+    check_expr_valid("0 0/5 14 * * ?");      /* Every 5 minutes starting at 2 PM and ending at 2:55 PM, every day. */
+    check_expr_valid("0 0/5 14,18 * * ?");   /* Every 5 minutes starting at 2 PM and ending at 2:55 PM, AND every 5
+                                                minutes starting at 6 PM and ending at 6:55 PM, every day. */
+    check_expr_valid("0 0-5 14 * * ?");      /* Every minute starting at 2 PM and ending at 2:05 PM, every day. */
+    check_expr_valid("0 10,44 14 ? 3 WED");  /* Every Wednesday in March at 2:10 PM and 2:44 PM. */
     check_expr_valid("0 15 10 ? * MON-FRI"); /* Every weekday at 10:15 AM. */
-    check_expr_valid("0 15 10 15 * ?"); /* Every 15th day of the month at 10:15 AM. */
-    check_expr_valid("0 15 10 L * ?"); /* Last day of every month at 10:15 AM. */
-    check_expr_valid("0 15 10 ? * 6L"); /* Last Friday of every month at 10:15 AM. */
-    check_expr_valid("0 15 10 ? * 6L 2022-2025"); /* Last Friday of every month during the years 2022 through 2025 at 10:15 AM. */
-    check_expr_valid("0 15 10 ? * 6#3"); /* Third Friday of every month at 10:15 AM. */
-    check_expr_valid("0 15 10 ? * 2-6"); /* Every weekday (Monday to Friday) at 10:15 AM. */
-    check_expr_valid("0 0/5 14-18 * * ?"); /* Every 5 minutes from 2 PM to 6:55 PM every day. */
-    check_expr_valid("0 0 12 1/5 * ?"); /* Every 5 days at 12 PM. */
-    check_expr_valid("0 11 11 11 11 ?"); /* Every November 11th at 11:11 AM. */
-    check_expr_valid("0 0 12 ? * SUN"); /* Every Sunday at noon. */
-    check_expr_valid("0 0 12 ? * MON"); /* Every Monday at noon. */
-    check_expr_valid("0 0 12 ? * TUE"); /* Every Tuesday at noon. */
-    check_expr_valid("0 0 12 ? * WED"); /* Every Wednesday at noon. */
-    check_expr_valid("0 0 12 ? * THU"); /* Every Thursday at noon. */
-    check_expr_valid("0 0 12 ? * FRI"); /* Every Friday at noon. */
-    check_expr_valid("0 0 12 ? * SAT"); /* Every Saturday at noon. */
-    check_expr_valid("0 0/30 8-9 1 * ?"); /* Every 30 minutes between 8-9 AM on the 1st of the month. */
-    check_expr_valid("0 0 0 1 1 ?"); /* Every New Year's Day at midnight. */
-    check_expr_valid("0 0 0 25 12 ?"); /* Every Christmas at midnight. */
-    check_expr_valid("0 0 6,18 * * ?"); /* Every day at 6 AM and 6 PM. */
-    check_expr_valid("0 0 8-10 ? * 2-6"); /* Every weekday between 8-10 AM. */
-    check_expr_valid("0 0/15 * ? * *"); /* Every 15 minutes. */
-    check_expr_valid("0 0 12 LW * ?"); /* Last weekday of the month at noon. */
-    check_expr_valid("0 0 12 1W * ?"); /* Nearest weekday to the 1st of the month at noon. */
-    check_expr_valid("0 0 12 W * ?"); /* Every weekday at noon. */
-    check_expr_valid("0 0 12 ? JAN,DEC *"); /* Every day at noon in January and December. */
-    check_expr_valid("0 0 12 ? * 1#2"); /* Second Sunday of every month at noon. */
-    check_expr_valid("0 0 12 ? * 2#2"); /* Second Monday of every month at noon. */
-    check_expr_valid("0 0 12 ? * 6#1"); /* First Friday of every month at noon. */
-    check_expr_valid("0 0 8,20 ? * *"); /* Every day at 8 AM and 8 PM. */
-    check_expr_valid("0 30 10-13 ? * WED,FRI"); /* Every Wednesday and Friday between 10:30 AM and 1:30 PM. */
-    check_expr_valid("0 0/10 * * * ?"); /* Every 10 minutes. */
-    check_expr_valid("0 0 12 L-2 * ?"); /* Two days before the end of the month at noon. */
-    check_expr_valid("0 0 12 15W * ?"); /* Nearest weekday to the 15th of every month at noon. */
-    check_expr_valid("0 0 0 * * ?"); /* Every day at midnight (beginning of the day). */
-    check_expr_valid("0 0 23 * * ?"); /* Every day at 11 PM (end of the day). */
-    check_expr_valid("0 30 10 ? * 2-6"); /* Every weekday at 10:30 AM. */
+    check_expr_valid("0 15 10 15 * ?");      /* Every 15th day of the month at 10:15 AM. */
+    check_expr_valid("0 15 10 L * ?");       /* Last day of every month at 10:15 AM. */
+    check_expr_valid("0 15 10 ? * 6L");      /* Last Friday of every month at 10:15 AM. */
+    check_expr_valid(
+        "0 15 10 ? * 6L 2022-2025"); /* Last Friday of every month during the years 2022 through 2025 at 10:15 AM. */
+    check_expr_valid("0 15 10 ? * 6#3");         /* Third Friday of every month at 10:15 AM. */
+    check_expr_valid("0 15 10 ? * 2-6");         /* Every weekday (Monday to Friday) at 10:15 AM. */
+    check_expr_valid("0 0/5 14-18 * * ?");       /* Every 5 minutes from 2 PM to 6:55 PM every day. */
+    check_expr_valid("0 0 12 1/5 * ?");          /* Every 5 days at 12 PM. */
+    check_expr_valid("0 11 11 11 11 ?");         /* Every November 11th at 11:11 AM. */
+    check_expr_valid("0 0 12 ? * SUN");          /* Every Sunday at noon. */
+    check_expr_valid("0 0 12 ? * MON");          /* Every Monday at noon. */
+    check_expr_valid("0 0 12 ? * TUE");          /* Every Tuesday at noon. */
+    check_expr_valid("0 0 12 ? * WED");          /* Every Wednesday at noon. */
+    check_expr_valid("0 0 12 ? * THU");          /* Every Thursday at noon. */
+    check_expr_valid("0 0 12 ? * FRI");          /* Every Friday at noon. */
+    check_expr_valid("0 0 12 ? * SAT");          /* Every Saturday at noon. */
+    check_expr_valid("0 0/30 8-9 1 * ?");        /* Every 30 minutes between 8-9 AM on the 1st of the month. */
+    check_expr_valid("0 0 0 1 1 ?");             /* Every New Year's Day at midnight. */
+    check_expr_valid("0 0 0 25 12 ?");           /* Every Christmas at midnight. */
+    check_expr_valid("0 0 6,18 * * ?");          /* Every day at 6 AM and 6 PM. */
+    check_expr_valid("0 0 8-10 ? * 2-6");        /* Every weekday between 8-10 AM. */
+    check_expr_valid("0 0/15 * ? * *");          /* Every 15 minutes. */
+    check_expr_valid("0 0 12 LW * ?");           /* Last weekday of the month at noon. */
+    check_expr_valid("0 0 12 1W * ?");           /* Nearest weekday to the 1st of the month at noon. */
+    check_expr_valid("0 0 12 W * ?");            /* Every weekday at noon. */
+    check_expr_valid("0 0 12 ? JAN,DEC *");      /* Every day at noon in January and December. */
+    check_expr_valid("0 0 12 ? * 1#2");          /* Second Sunday of every month at noon. */
+    check_expr_valid("0 0 12 ? * 2#2");          /* Second Monday of every month at noon. */
+    check_expr_valid("0 0 12 ? * 6#1");          /* First Friday of every month at noon. */
+    check_expr_valid("0 0 8,20 ? * *");          /* Every day at 8 AM and 8 PM. */
+    check_expr_valid("0 30 10-13 ? * WED,FRI");  /* Every Wednesday and Friday between 10:30 AM and 1:30 PM. */
+    check_expr_valid("0 0/10 * * * ?");          /* Every 10 minutes. */
+    check_expr_valid("0 0 12 L-2 * ?");          /* Two days before the end of the month at noon. */
+    check_expr_valid("0 0 12 15W * ?");          /* Nearest weekday to the 15th of every month at noon. */
+    check_expr_valid("0 0 0 * * ?");             /* Every day at midnight (beginning of the day). */
+    check_expr_valid("0 0 23 * * ?");            /* Every day at 11 PM (end of the day). */
+    check_expr_valid("0 30 10 ? * 2-6");         /* Every weekday at 10:30 AM. */
     check_expr_valid("0 0/10 8-17 ? * MON-FRI"); /* Every 10 minutes during working hours (8 AM - 5 PM) on weekdays. */
-    /*check_expr_valid("0 0 12 1L * ?"); */ /* Last day of the month at noon. */
-    check_expr_valid("0 0 12 ? * SUN,MON"); /* Every Sunday and Monday at noon. */
-    check_expr_valid("0 0/5 9-16 * * ?"); /* Every 5 minutes from 9 AM to 4:55 PM every day. */
-    check_expr_valid("0 0 12 10-15 * ?"); /* Every day from the 10th to the 15th at noon. */
-    check_expr_valid("0 0 0 1 JAN-JUN ?"); /* First day of the month from January to June at midnight. */
-    check_expr_valid("0 0 0 ? * 2L"); /* Last Monday of the month at midnight. */
-    check_expr_valid("0 0 0 ? * 6#4"); /* Fourth Friday of the month at midnight. */
-    check_expr_valid("0 0 12 1/2 * ?"); /* Every other day at noon. */
-    check_expr_valid("0 0 12 ? * 2/2"); /* Every other Monday at noon. */
-    check_expr_valid("0 0 0 29 FEB ?"); /* Every 29th of February at midnight (Leap Year). */
-    check_expr_valid("0 0 12 1,15 * ?"); /* 1st and 15th of the month at noon. */
-    check_expr_valid("0 0 0 1 * ? 2024"); /* 1st of every month in 2024 at midnight. */
-    check_expr_valid("0 30 6 ? * 1-5"); /* Weekdays at 6:30 AM. */
-    check_expr_valid("0 0 0/2 * * ?"); /* Every 2 hours. */
-    check_expr_valid("0 0 12/3 ? * *"); /* Every 3 hours starting at noon. */
-    check_expr_valid("0 15,45 * ? * *"); /* Every hour at 15 and 45 minutes past. */
-    check_expr_valid("0 0 0 ? * SAT,SUN"); /* Every weekend at midnight. */
-    check_expr_valid("0 0 8-10,14-16 * * ?"); /* Every day from 8-10 AM and 2-4 PM. */
-    check_expr_valid("0 0 12 ? 1-6,9-12 *"); /* Every day at noon excluding July and August. */
-    check_expr_valid("0 0 12/4 * * ?"); /* Every 4 hours starting at noon. */
-    check_expr_valid("0 0 9-17 * * ?"); /* Every hour from 9 AM to 5 PM. */
-    check_expr_valid("0 0/20 9-16 * * ?"); /* Every 20 minutes from 9 AM to 4:40 PM. */
-    check_expr_valid("0 0 12 ? * 2-6"); /* Every weekday at noon. */
-    check_expr_valid("0 0 8-11,13-16 * * ?"); /* Every day from 8-11 AM and 1-4 PM. */
-    check_expr_valid("0 0/30 6-18 * * ?"); /* Every 30 minutes from 6 AM to 6:30 PM. */
+    /*check_expr_valid("0 0 12 1L * ?"); */      /* Last day of the month at noon. */
+    check_expr_valid("0 0 12 ? * SUN,MON");      /* Every Sunday and Monday at noon. */
+    check_expr_valid("0 0/5 9-16 * * ?");        /* Every 5 minutes from 9 AM to 4:55 PM every day. */
+    check_expr_valid("0 0 12 10-15 * ?");        /* Every day from the 10th to the 15th at noon. */
+    check_expr_valid("0 0 0 1 JAN-JUN ?");       /* First day of the month from January to June at midnight. */
+    check_expr_valid("0 0 0 ? * 2L");            /* Last Monday of the month at midnight. */
+    check_expr_valid("0 0 0 ? * 6#4");           /* Fourth Friday of the month at midnight. */
+    check_expr_valid("0 0 12 1/2 * ?");          /* Every other day at noon. */
+    check_expr_valid("0 0 12 ? * 2/2");          /* Every other Monday at noon. */
+    check_expr_valid("0 0 0 29 FEB ?");          /* Every 29th of February at midnight (Leap Year). */
+    check_expr_valid("0 0 12 1,15 * ?");         /* 1st and 15th of the month at noon. */
+    check_expr_valid("0 0 0 1 * ? 2024");        /* 1st of every month in 2024 at midnight. */
+    check_expr_valid("0 30 6 ? * 1-5");          /* Weekdays at 6:30 AM. */
+    check_expr_valid("0 0 0/2 * * ?");           /* Every 2 hours. */
+    check_expr_valid("0 0 12/3 ? * *");          /* Every 3 hours starting at noon. */
+    check_expr_valid("0 15,45 * ? * *");         /* Every hour at 15 and 45 minutes past. */
+    check_expr_valid("0 0 0 ? * SAT,SUN");       /* Every weekend at midnight. */
+    check_expr_valid("0 0 8-10,14-16 * * ?");    /* Every day from 8-10 AM and 2-4 PM. */
+    check_expr_valid("0 0 12 ? 1-6,9-12 *");     /* Every day at noon excluding July and August. */
+    check_expr_valid("0 0 12/4 * * ?");          /* Every 4 hours starting at noon. */
+    check_expr_valid("0 0 9-17 * * ?");          /* Every hour from 9 AM to 5 PM. */
+    check_expr_valid("0 0/20 9-16 * * ?");       /* Every 20 minutes from 9 AM to 4:40 PM. */
+    check_expr_valid("0 0 12 ? * 2-6");          /* Every weekday at noon. */
+    check_expr_valid("0 0 8-11,13-16 * * ?");    /* Every day from 8-11 AM and 1-4 PM. */
+    check_expr_valid("0 0/30 6-18 * * ?");       /* Every 30 minutes from 6 AM to 6:30 PM. */
     check_expr_valid("0 0 12 ? JAN,MAR,MAY,JUL,SEP,NOV *"); /* Every alternate month at noon. */
-    check_expr_valid("0 15 9 ? * MON,TUE,WED,THU,FRI"); /* Every weekday at 9:15 AM. */
-    check_expr_valid("0 0/40 * ? * *"); /* Every 40 minutes. */
-    check_expr_valid("0 30 10-14 ? * ?"); /* Every day from 10:30 AM to 2:30 PM. */
-    check_expr_valid("0 0 12 * JAN-DEC ?"); /* Every day of the year at noon. */
-    check_expr_valid("0 0 0 25 12 ? *"); /* Every Christmas at midnight. */
-    check_expr_valid("0 0 0/3 * * ?"); /* Every 3 hours. */
-    check_expr_valid("0 0 12 * * ? 2025"); /* Every day at noon in the year 2025. */
-    check_expr_valid("0 0 6 ? * 2-6"); /* Every weekday at 6 AM. */
-    check_expr_valid("0 0 18 ? * 1-5"); /* Every weekday at 6 PM. */
-    check_expr_valid("0 0 0 ? * * 2026"); /* Every day at midnight in 2026. */
-    check_expr_valid("0 0/45 10-14 * * ?"); /* Every 45 minutes between 10 AM and 2:45 PM. */
-    check_expr_valid("0 0 12 1/3 * ?"); /* Every 3 days at noon. */
-    check_expr_valid("0 0 0 1 JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC ?"); /* Start of every month at midnight. */
+    check_expr_valid("0 15 9 ? * MON,TUE,WED,THU,FRI");     /* Every weekday at 9:15 AM. */
+    check_expr_valid("0 0/40 * ? * *");                     /* Every 40 minutes. */
+    check_expr_valid("0 30 10-14 ? * ?");                   /* Every day from 10:30 AM to 2:30 PM. */
+    check_expr_valid("0 0 12 * JAN-DEC ?");                 /* Every day of the year at noon. */
+    check_expr_valid("0 0 0 25 12 ? *");                    /* Every Christmas at midnight. */
+    check_expr_valid("0 0 0/3 * * ?");                      /* Every 3 hours. */
+    check_expr_valid("0 0 12 * * ? 2025");                  /* Every day at noon in the year 2025. */
+    check_expr_valid("0 0 6 ? * 2-6");                      /* Every weekday at 6 AM. */
+    check_expr_valid("0 0 18 ? * 1-5");                     /* Every weekday at 6 PM. */
+    check_expr_valid("0 0 0 ? * * 2026");                   /* Every day at midnight in 2026. */
+    check_expr_valid("0 0/45 10-14 * * ?");                 /* Every 45 minutes between 10 AM and 2:45 PM. */
+    check_expr_valid("0 0 12 1/3 * ?");                     /* Every 3 days at noon. */
+    check_expr_valid(
+        "0 0 0 1 JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC ?"); /* Start of every month at midnight. */
     check_expr_valid("0 0 12 10,20,30 * ?"); /* Every 10th, 20th, and 30th of the month at noon. */
-    check_expr_valid("0 0/50 8-16 * * ?"); /* Every 50 minutes from 8 AM to 4:50 PM. */
-    check_expr_invalid("0 0 12 ? * 1#1,3#3,5#5"); /* First Sunday, third Wednesday, and fifth Friday of every month at noon. */
+    check_expr_valid("0 0/50 8-16 * * ?");   /* Every 50 minutes from 8 AM to 4:50 PM. */
+    check_expr_invalid(
+        "0 0 12 ? * 1#1,3#3,5#5");     /* First Sunday, third Wednesday, and fifth Friday of every month at noon. */
     check_expr_valid("0 0 0/4 * * ?"); /* Every 4 hours. */
-    check_expr_valid("0 15,30,45 * * * ?"); /* Every hour at 15, 30, and 45 minutes past. */
-    check_expr_valid("0 0 12 ? * 2L"); /* Last Monday of every month at noon. */
-    check_expr_valid("0 0 12 ? * 5L"); /* Last Thursday of every month at noon. */
-    check_expr_valid("0 0 0/6 * * ?"); /* Every 6 hours. */
-    check_expr_valid("0 0 12/2 ? * *"); /* Every 2 hours starting at noon. */
+    check_expr_valid("0 15,30,45 * * * ?");      /* Every hour at 15, 30, and 45 minutes past. */
+    check_expr_valid("0 0 12 ? * 2L");           /* Last Monday of every month at noon. */
+    check_expr_valid("0 0 12 ? * 5L");           /* Last Thursday of every month at noon. */
+    check_expr_valid("0 0 0/6 * * ?");           /* Every 6 hours. */
+    check_expr_valid("0 0 12/2 ? * *");          /* Every 2 hours starting at noon. */
     check_expr_valid("0 0 12 ? 1,3,5,7,9,11 *"); /* Every odd month at noon. */
     check_expr_valid("0 0 0 ? 2,4,6,8,10,12 *"); /* Every even month at midnight. */
-    check_expr_valid("0 0 12 * * ? 2027"); /* Every day at noon in the year 2027. */
- 
+    check_expr_valid("0 0 12 * * ? 2027");       /* Every day at noon in the year 2027. */
+
     check_expr_valid("0 6,9,12 0 * 4,6,8 *");
     check_expr_valid("0 6,9,12,16,20,24 0 * 2,4,6,8,9,10 *");
 }
@@ -919,4 +928,3 @@ int main() {
     printf("\nAll OK!\n");
     return 0;
 }
-
