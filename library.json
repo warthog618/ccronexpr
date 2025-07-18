@@ -1,0 +1,29 @@
+{
+	"name": "ccronexpr",
+	"keywords": "cron, expression, time, date",
+	"description": "C library for simple Cron expression parsing. A 4th level fork of the staticlibs/ccronexpr.",
+	"repository": {
+		"type": "git",
+		"url": "http://bilby:3000/warthog618/ccronexpr.git"
+	},
+	"authors": [
+		{
+			"name": "Kent Gibson",
+			"email": "warthog618@gmail.com",
+			"url": "https://github.com/warthog618",
+			"maintainer": true
+		}
+	],
+	"version": "0.1.0",
+	"frameworks": ["arduino", "espidf"],
+	"platforms": "*",
+	"export": {
+		"include": ["ccronexpr.c", "ccronexpr.h"],
+		"exclude": ["ccronexpr_test.c"]
+	},
+	"build": {
+		"srcDir": ".",
+		"includeDir": ".",
+		"flags": "-DCRON_USE_LOCAL_TIME"
+	}
+}

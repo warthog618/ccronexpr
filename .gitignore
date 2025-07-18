@@ -1,8 +1,5 @@
 build/
 cmake-build*/
-/nbproject
-.idea/
 *.o
-supertinycron
 ccronexpr_test
 libccronexpr.so
