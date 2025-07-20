@@ -88,7 +88,7 @@ The `W` character can also pair with `L` (as `LW`), signifying the last business
 #### Hash `#`
 The `#` character is only for the 'Day of week' field and should be followed by a number between one and five, or their negative values. It lets you specify constructs like "the second Friday" of a month.
 
-For example, `6#3` means the third Friday of the month. Note that if you use `#5` and there isn't a fifth occurrence of that weekday in the month, no firing occurs for that month. Using the '#' character requires a single expression in the 'Day of week' field.
+For example, `1#3` means the third Monday of the month. Note that if you use `#5` and there isn't a fifth occurrence of that weekday in the month, no firing occurs for that month. Using the '#' character requires a single expression in the 'Day of week' field.
 
 Negative nth values are also valid. For instance, `6#-1` is equivalent to `6L`.
 
