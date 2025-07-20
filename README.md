@@ -1,33 +1,10 @@
 
-supertinycron
-=============
+ccronexpr
+=========
 
-A very small replacement for cron. Particularly useful within containers and for distributing cron tasks alongside a project as a standalone file.
+The most recent ccronexpr fork I could find (drawn from [supertinycon](https://github.com/exander77/supertinycron)) forked so it can be packaged as a [PlatformIO](https://platformio.org/) library.
 
-Installing
-----------
-
-```bash
-make install
-```
-
-Usage
------
-
-```
-supertinycron [expression] [command...]
-```
-
-Supertinycron can be conveniently used in your scripts interpreter line:
-```bash
-#!/usr/local/bin/supertinycron */5 * * * * * * /bin/sh
-echo "Current time: $(date)"
-```
-
-Or invoked directly via commandline:
-```bash
-$ supertinycron '*/5 * * * * * *' /bin/echo hello
-```
+Specifically, I was after a cron parser version supporting the 'L', 'W' and '#' special characters.
 
 Implementation
 --------------
@@ -123,16 +100,6 @@ Other details
 * Only proper expressions are guaranteed to work.
 * Cron doesn't decide calendar, it follows it. It doesn't and it should not disallow combinations like 31st April or 30rd February. Not only that these dates hisctorically happened, but they may very well happen based on timezone configuration. Within reasonable constrains, it should work under changed conditions.
 
-Config
-------
-
-TinyCron can be configured by setting the below environmental variables to a non-empty value:
-
-Variable | Description
---- | ---
-TINYCRON_VERBOSE | Enable verbose output
-
-
 Cron expression parsing in ANSI C
 =================================
 
@@ -218,6 +185,11 @@ This project is released under the [Apache License 2.0](http://www.apache.org/li
 
 Changelog
 ---------
+
+**2025**
+* forked from supertinycron
+* removed supertinycron.c
+* added library.json
 
 **2023**
 * major extension of supported expressions
