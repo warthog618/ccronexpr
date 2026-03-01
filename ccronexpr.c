@@ -220,7 +220,7 @@ static int closest_weekday(int day_of_month, int month, int year) {
 
 static void set_field(struct tm* calendar, int field, int val) {
     *get_field_ptr(calendar, field) = val;
-#if defined(CRON_USE_LOCAL_TIME) && defined(CRON_STRICT_MATCH)
+#ifdef CRON_USE_LOCAL_TIME
     /* Force libc to recalculate DST after any manual calendar-field change. */
     calendar->tm_isdst = -1;
 #endif
@@ -235,7 +235,6 @@ static void add_to_field(struct tm* calendar, int field, int val) {
     set_field(calendar, field, *get_field_ptr(calendar, field) + val);
 }
 
-#ifdef CRON_STRICT_MATCH
 /*
  * Carry operations from seconds->minutes and minutes->hours must move on the
  * timeline (not only in wall-clock fields), otherwise DST gaps can normalize
@@ -255,7 +254,6 @@ static int roll_carry_field(struct tm* calendar, int nextField, int offset) {
     add_to_field(calendar, nextField, offset);
     return CRON_INVALID_INSTANT == cron_mktime(calendar) ? -1 : 0;
 }
-#endif
 
 /**
  * Reset the calendar setting all the fields provided to zero or max value.
@@ -527,11 +525,7 @@ static int find_nextprev(uint8_t* bits, int max, int value, int value_offset, st
     /* roll under if needed */
     if (next_value < 0) {
         if (offset > 0) reset_max(calendar, field); else reset_min(calendar, field);
-#ifdef CRON_STRICT_MATCH
         if (0 != roll_carry_field(calendar, nextField, offset)) goto return_error;
-#else
-        add_to_field(calendar, nextField, offset); MKTIME(calendar);
-#endif
         next_value = offset > 0 ? next_set_bit(bits, max, 0) : prev_set_bit(bits, max - 1, value);
     }
     if (next_value < 0 || next_value != value) {
@@ -763,7 +757,7 @@ static int cron_once(cron_expr* expr, time_t date, int offset, time_t* result) {
      ...
      */
     struct tm calval, *calendar;
-    time_t original, calculated;
+    time_t original, calculated, stepped;
     if (!expr || !result) goto return_error;
     memset(&calval, 0, sizeof(struct tm));
     calendar = cron_time(&date, &calval);
@@ -774,8 +768,9 @@ static int cron_once(cron_expr* expr, time_t date, int offset, time_t* result) {
     calculated = cron_mktime(calendar);
     if (CRON_INVALID_INSTANT == calculated) goto return_error;
     if (calculated == original) {
-        /* We arrived at the original timestamp - round up to the next whole second and try again... */
-        add_to_field(calendar, CRON_CF_SECOND, offset); MKTIME(calendar);
+        /* Step on the absolute timeline to avoid ambiguous local-time normalization loops. */
+        stepped = original + offset;
+        if (!cron_time(&stepped, calendar)) goto return_error;
         if (0 != do_nextprev(expr, calendar, calendar->tm_year, offset)) goto return_error;
     }
 

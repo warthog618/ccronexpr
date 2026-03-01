@@ -17,7 +17,7 @@ CFLAGS_COMMON="${CFLAGS_COMMON:--Wextra -std=c89 -O2 -fPIC}"
 MODES="${MODES:-relaxed strict}"
 TIMEZONES="${TIMEZONES:-UTC
 Europe/London Europe/Prague Europe/Berlin Europe/Moscow Europe/Dublin Europe/Istanbul Europe/Kyiv Europe/Lisbon Europe/Volgograd
-America/New_York America/Chicago America/Denver America/Los_Angeles America/Sao_Paulo America/Phoenix America/St_Johns America/Indiana/Indianapolis America/Anchorage America/Halifax
+America/New_York America/Toronto America/Chicago America/Denver America/Los_Angeles America/Sao_Paulo America/Phoenix America/St_Johns America/Indiana/Indianapolis America/Anchorage America/Halifax
 America/Santiago America/Asuncion America/Coyhaique America/Punta_Arenas
 Asia/Tokyo Asia/Shanghai Asia/Kolkata Asia/Singapore Asia/Dubai Asia/Jerusalem Asia/Kathmandu Asia/Tehran Asia/Seoul Asia/Dhaka
 Australia/Sydney Australia/Adelaide Australia/Lord_Howe
@@ -52,41 +52,28 @@ strict:musl_gcc:local_noyears:Africa/Casablanca
 strict:musl_gcc:local_noyears:Africa/Cairo
 strict:musl_gcc:local_noyears:Antarctica/Palmer
 strict:musl_gcc:local_noyears:Egypt
-relaxed:local:America/New_York
-relaxed:local:America/Chicago
-relaxed:local:America/Denver
-relaxed:local:America/Los_Angeles
-relaxed:local:America/St_Johns
-relaxed:local:America/Indiana/Indianapolis
-relaxed:local:America/Anchorage
-relaxed:local:America/Halifax
-relaxed:local:America/Santiago
-relaxed:local:America/Asuncion
-relaxed:local:America/Coyhaique
-relaxed:local:Australia/Sydney
-relaxed:local:Australia/Adelaide
-relaxed:local:Australia/Lord_Howe
-relaxed:local:Pacific/Auckland
-relaxed:local:Pacific/Chatham
-relaxed:cc:local:Pacific/Apia
-relaxed:local:Africa/Casablanca
-relaxed:local_noyears:America/New_York
-relaxed:local_noyears:America/Chicago
-relaxed:local_noyears:America/Denver
-relaxed:local_noyears:America/Los_Angeles
-relaxed:local_noyears:America/St_Johns
-relaxed:local_noyears:America/Indiana/Indianapolis
-relaxed:local_noyears:America/Anchorage
-relaxed:local_noyears:America/Halifax
-relaxed:local_noyears:America/Santiago
-relaxed:local_noyears:America/Asuncion
-relaxed:local_noyears:America/Coyhaique
-relaxed:local_noyears:Australia/Sydney
-relaxed:local_noyears:Australia/Adelaide
-relaxed:local_noyears:Australia/Lord_Howe
-relaxed:local_noyears:Pacific/Auckland
-relaxed:local_noyears:Pacific/Chatham
-relaxed:cc:local_noyears:Pacific/Apia
+relaxed:musl_gcc:local:America/Sao_Paulo
+relaxed:musl_gcc:local:America/Santiago
+relaxed:musl_gcc:local:America/Asuncion
+relaxed:musl_gcc:local:America/Coyhaique
+relaxed:musl_gcc:local:America/Punta_Arenas
+relaxed:musl_gcc:local:Asia/Tehran
+relaxed:musl_gcc:local:Pacific/Apia
+relaxed:musl_gcc:local:Africa/Casablanca
+relaxed:musl_gcc:local:Africa/Cairo
+relaxed:musl_gcc:local:Antarctica/Palmer
+relaxed:musl_gcc:local:Egypt
+relaxed:musl_gcc:local_noyears:America/Sao_Paulo
+relaxed:musl_gcc:local_noyears:America/Santiago
+relaxed:musl_gcc:local_noyears:America/Asuncion
+relaxed:musl_gcc:local_noyears:America/Coyhaique
+relaxed:musl_gcc:local_noyears:America/Punta_Arenas
+relaxed:musl_gcc:local_noyears:Asia/Tehran
+relaxed:musl_gcc:local_noyears:Pacific/Apia
+relaxed:musl_gcc:local_noyears:Africa/Casablanca
+relaxed:musl_gcc:local_noyears:Africa/Cairo
+relaxed:musl_gcc:local_noyears:Antarctica/Palmer
+relaxed:musl_gcc:local_noyears:Egypt
 "
 fi
 

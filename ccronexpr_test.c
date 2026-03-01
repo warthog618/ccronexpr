@@ -238,6 +238,38 @@ mismatch_accepted:
     free(buffer);
 }
 
+#define check_fn_t(fn_fn,pattern,initial,expected) check_fn_line_t(fn_fn, pattern, initial, expected, __LINE__)
+void check_fn_line_t(cron_find_fn fn, const char* pattern, time_t initial, time_t expected, int line) {
+    const char* err = NULL;
+    const int len = count_fields(pattern, ' ');
+    cron_expr parsed1, parsed2;
+    time_t datenext;
+    char* buffer;
+    cron_parse_expr(pattern, &parsed1, &err);
+    assert(-1 != initial);
+    datenext = fn(&parsed1, initial);
+    printf("parsed: %s\n", pattern);
+    if (expected != datenext) {
+        printf("Line:     %d\n", line);
+        printf("Pattern:  %s\n", pattern);
+        printf("Initial:  %ld\n", (long)initial);
+        printf("Expected: %ld\n", (long)expected);
+        printf("Actual:   %ld\n", (long)datenext);
+        assert(0);
+    }
+    buffer = (char*) malloc(512);
+    memset(buffer, 0, 512);
+    assert(cron_generate_expr(&parsed1, buffer, 512, len, &err) > 0);
+    if (0 != strcmp(pattern, buffer)) {
+        printf("Line: %d\n", line);
+        printf("Pattern: %s\n", pattern);
+        printf("Actual:  %s\n", buffer);
+    }
+    cron_parse_expr(buffer, &parsed2, &err);
+    assert(crons_equal(&parsed1, &parsed2));
+    free(buffer);
+}
+
 void check_same(const char* expr1, const char* expr2) {
     cron_expr parsed1;
     cron_parse_expr(expr1, &parsed1, NULL);
@@ -325,6 +357,15 @@ void test_expr() {
     if (tz && !strcmp("America/New_York", tz)) {
         check_fn(cron_next, "2 * * * * *", "2024-03-10_01:59:02", "2024-03-10_03:00:02");
         check_fn(cron_prev, "2 * * * * *", "2024-03-10_03:00:02", "2024-03-10_01:59:02");
+    }
+    if (tz && !strcmp("America/Toronto", tz)) {
+        check_fn(cron_next, "* 6-20 * * *", "2019-03-09_21:00:00", "2019-03-10_06:00:00");
+        check_fn(cron_next, "* 6-20 * * *", "2019-11-02_21:00:00", "2019-11-03_06:00:00");
+        check_fn(cron_next, "* * * * *", "2019-03-10_01:59:59", "2019-03-10_03:00:00");
+        check_fn(cron_next, "* 15 11 * * *", "2019-03-09_11:43:00", "2019-03-10_11:15:00");
+        /* Use epoch values to disambiguate duplicated local wall-clock times after fall-back. */
+        check_fn_t(cron_next, "* * * * * *", (time_t)1572760799, (time_t)1572760800);
+        check_fn_t(cron_next, "* * * * * *", (time_t)1572764399, (time_t)1572764400);
     }
 #endif
 
