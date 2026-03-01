@@ -94,30 +94,8 @@ static int crons_equal(cron_expr* cr1, cron_expr* cr2) {
 }
 
 int one_dec_num(const char ch) {
-    switch (ch) {
-    case '0':
-        return 0;
-    case '1':
-        return 1;
-    case '2':
-        return 2;
-    case '3':
-        return 3;
-    case '4':
-        return 4;
-    case '5':
-        return 5;
-    case '6':
-        return 6;
-    case '7':
-        return 7;
-    case '8':
-        return 8;
-    case '9':
-        return 9;
-    default:
-        return -1;
-    }
+    if (ch < '0' || ch > '9') return -1;
+    return ch - '0';
 }
 
 int extract_digits(const char *str, int *digit_count) {
@@ -240,8 +218,10 @@ void check_calc_invalid() {
     struct tm calinit;
     poors_mans_strptime("2012-07-01_09:53:50", &calinit);
     time_t dateinit = cron_mktime(&calinit);
-    time_t res = cron_next(&parsed, dateinit);
-    assert(CRON_INVALID_INSTANT == res);
+    time_t next_res = cron_next(&parsed, dateinit);
+    time_t prev_res = cron_prev(&parsed, dateinit);
+    assert(CRON_INVALID_INSTANT == next_res);
+    assert(CRON_INVALID_INSTANT == prev_res);
 }
 
 void check_expr_invalid(const char* pattern) {
@@ -285,11 +265,32 @@ void test_expr() {
     char* tz = getenv("TZ");
 
 #ifdef CRON_USE_LOCAL_TIME
-    /* DST test */
+    /* DST spring-forward tests */
     if (tz && !strcmp("Europe/Prague", tz)) {
         check_fn(cron_next, "2 * * * * *", "2024-03-31_01:59:02", "2024-03-31_03:00:02");
+        check_fn(cron_prev, "2 * * * * *", "2024-03-31_03:00:02", "2024-03-31_01:59:02");
+    }
+    if (tz && !strcmp("America/New_York", tz)) {
+        check_fn(cron_next, "2 * * * * *", "2024-03-10_01:59:02", "2024-03-10_03:00:02");
+        check_fn(cron_prev, "2 * * * * *", "2024-03-10_03:00:02", "2024-03-10_01:59:02");
     }
 #endif
+
+    /* Multiple options in the seconds field. */
+    check_fn(cron_next, "4,36 * 10 * * *", "2012-07-01_00:00:05", "2012-07-01_10:00:04");
+    check_fn(cron_prev, "4,36 * 10 * * *", "2012-07-01_00:00:05", "2012-06-30_10:59:36");
+    check_fn(cron_next, "4,36 * 10 2 * *", "2012-07-01_10:00:05", "2012-07-02_10:00:04");
+    check_fn(cron_prev, "4,36 * 10 2 * *", "2012-07-01_10:00:05", "2012-06-02_10:59:36");
+
+    /* Multiple options in lower-order fields must be reset after higher-order rollovers. */
+    check_fn(cron_next, "0 36,58 10 * * *", "2012-07-01_00:50:05", "2012-07-01_10:36:00");
+    check_fn(cron_prev, "0 36,58 10 * * *", "2012-07-01_00:50:05", "2012-06-30_10:58:00");
+    check_fn(cron_next, "4,36 58 10 2 * *", "2012-07-01_00:00:05", "2012-07-02_10:58:04");
+    check_fn(cron_prev, "4,36 58 10 2 * *", "2012-07-01_00:00:05", "2012-06-02_10:58:36");
+
+    /* Runtime behavior for 5-field expressions (implicit seconds=0). */
+    check_fn(cron_next, "*/2 * * * *", "2012-07-01_09:00:30", "2012-07-01_09:02:00");
+    check_fn(cron_prev, "*/2 * * * *", "2012-07-01_09:00:00", "2012-07-01_08:58:00");
 
     /*Test leap seconds
     check_fn(cron_next, "60 0 0 * * *", "2015-01-01_15:12:42", "2015-06-30_00:00:00");*/
@@ -919,4 +920,3 @@ int main() {
     printf("\nAll OK!\n");
     return 0;
 }
-

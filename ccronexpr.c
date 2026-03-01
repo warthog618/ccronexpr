@@ -553,7 +553,7 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
 
 #define RI(field, expr_field, min, max, nextField) \
         value = *get_field_ptr(calendar, field); update_value = find_nextprev(expr_field, max, value, min, calendar, field, nextField, resets, offset);
-#define RF(field) if (update_value < 0) break; if (value == update_value) cron_set_bit(resets, field)
+#define RF(field) if (update_value < 0) break; cron_set_bit(resets, field); if (value == update_value)
 
 static int do_nextprev(cron_expr* expr, struct tm* calendar, int dot, int offset) {
     int value = 0, update_value = 0;
