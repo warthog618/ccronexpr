@@ -17,6 +17,7 @@ EXECUTABLE_TEST = ccronexpr_test
 SHARED = libccronexpr.so
 LDFLAGS = -shared -Wl,-soname,$(SHARED) -fPIC
 INSTALL_DIR = /usr/local/bin
+.PHONY: all shared install uninstall clean test-matrix test-scan-timezones
 
 all: $(EXECUTABLE) $(EXECUTABLE_TEST)
 
@@ -40,3 +41,9 @@ uninstall:
 
 clean:
 	rm -f $(OBJECTS) $(OBJECTS_TEST) $(EXECUTABLE) $(EXECUTABLE_TEST) $(SHARED)
+
+test-matrix:
+	bash test/run_ccronexpr_test_matrix.sh
+
+test-scan-timezones:
+	bash test/scan_ccronexpr_timezone_issues.sh

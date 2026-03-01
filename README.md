@@ -184,6 +184,45 @@ Compilation and tests run examples
 
     cl ccronexpr.c supertinycron.c /W4 /D_CRT_SECURE_NO_WARNINGS && supertinycron.exe
 
+Matrix test runner
+------------------
+
+Run `ccronexpr_test` across multiple compilers, build settings, and timezones:
+
+    make test-matrix
+
+By default this runs for `cc` and `musl-gcc` (if available), across settings, both matching modes (`relaxed` and `strict`), and the timezone list in the script.
+
+You can customize the run:
+
+    TIMEZONES="UTC Europe/Prague America/New_York" TIMEOUT_SECS=30 COMPILERS="cc musl-gcc" make test-matrix
+
+To run only one mode:
+
+    MODES="relaxed" make test-matrix
+    MODES="strict" make test-matrix
+
+To override expected-fail entries in the compiler/timezone/settings matrix:
+
+    XFAIL_MATRIX="" make test-matrix
+
+`XFAIL_MATRIX` entries support:
+- `setting:timezone`
+- `mode:setting:timezone` (for example `relaxed:local:Pacific/Apia`)
+- `compiler_tag:setting:timezone` (for example `musl_gcc:local:Pacific/Apia`)
+- `compiler_bin:setting:timezone` (for example `musl-gcc:local:Pacific/Apia`)
+- `mode:compiler_tag:setting:timezone` (for example `strict:musl_gcc:local:Pacific/Apia`)
+
+Default matrix settings: `local`, `local_noyears`, `utc`, `utc_noyears`.
+
+The default matrix includes major zones plus DST-edge zones (for example `Pacific/Apia`, `Africa/Cairo`, `America/Santiago`, `America/Asuncion`, `America/Coyhaique`, `America/Punta_Arenas`, `Antarctica/Palmer`, `Asia/Dhaka`).
+
+To scan against the full local timezone database (`/usr/share/zoneinfo`) and print failing `(setting, timezone)` pairs:
+
+    make test-scan-timezones
+
+Detailed findings and fix notes are in [`test/TZ_ISSUES.md`](test/TZ_ISSUES.md).
+
 Examples of supported expressions
 ---------------------------------
 
@@ -205,6 +244,8 @@ processed as UTC (GMT) dates without timezone information.
 To use local dates (current system timezone) instead of GMT compile with `-DCRON_USE_LOCAL_TIME`, example:
 
     gcc -DCRON_USE_LOCAL_TIME ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -o a.out && TZ="America/Toronto" ./a.out
+
+By default matching is relaxed (legacy behavior). To enable strict post-normalization matching (requiring resulting local fields to match expression fields), compile with `-DCRON_STRICT_MATCH`.
 
 Years
 -----
@@ -258,4 +299,3 @@ Changelog
 **2015-02-28**
 
  * initial public version
-

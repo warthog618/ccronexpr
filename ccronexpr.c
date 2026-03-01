@@ -39,6 +39,8 @@
 #define CRON_MIN_YEARS 1970
 #define CRON_MAX_YEARS 2200
 #define CRON_MAX_YEARS_DIFF 4
+#define CRON_MAX_DO_NEXTPREV_ITERS 100000
+#define CRON_MAX_CRON_ITERS 100000
 
 #define YEAR_OFFSET 1900
 #define DAY_SECONDS 24 * 60 * 60
@@ -218,6 +220,10 @@ static int closest_weekday(int day_of_month, int month, int year) {
 
 static void set_field(struct tm* calendar, int field, int val) {
     *get_field_ptr(calendar, field) = val;
+#if defined(CRON_USE_LOCAL_TIME) && defined(CRON_STRICT_MATCH)
+    /* Force libc to recalculate DST after any manual calendar-field change. */
+    calendar->tm_isdst = -1;
+#endif
     /* Reset day of month after month change to it's maximum. */
     if (field == CRON_CF_MONTH) {
         val = last_day_of_month(calendar->tm_mon, calendar->tm_year, 0);
@@ -228,6 +234,28 @@ static void set_field(struct tm* calendar, int field, int val) {
 static void add_to_field(struct tm* calendar, int field, int val) {
     set_field(calendar, field, *get_field_ptr(calendar, field) + val);
 }
+
+#ifdef CRON_STRICT_MATCH
+/*
+ * Carry operations from seconds->minutes and minutes->hours must move on the
+ * timeline (not only in wall-clock fields), otherwise DST gaps can normalize
+ * backwards carries into the future (and vice versa).
+ */
+static int roll_carry_field(struct tm* calendar, int nextField, int offset) {
+    time_t t;
+
+    if (CRON_CF_MINUTE == nextField || CRON_CF_HOUR_OF_DAY == nextField) {
+        t = cron_mktime(calendar);
+        if (CRON_INVALID_INSTANT == t) return -1;
+        t += (time_t)offset * (CRON_CF_MINUTE == nextField ? 60 : 60 * 60);
+        if (!cron_time(&t, calendar)) return -1;
+        return 0;
+    }
+
+    add_to_field(calendar, nextField, offset);
+    return CRON_INVALID_INSTANT == cron_mktime(calendar) ? -1 : 0;
+}
+#endif
 
 /**
  * Reset the calendar setting all the fields provided to zero or max value.
@@ -499,7 +527,11 @@ static int find_nextprev(uint8_t* bits, int max, int value, int value_offset, st
     /* roll under if needed */
     if (next_value < 0) {
         if (offset > 0) reset_max(calendar, field); else reset_min(calendar, field);
+#ifdef CRON_STRICT_MATCH
+        if (0 != roll_carry_field(calendar, nextField, offset)) goto return_error;
+#else
         add_to_field(calendar, nextField, offset); MKTIME(calendar);
+#endif
         next_value = offset > 0 ? next_set_bit(bits, max, 0) : prev_set_bit(bits, max - 1, value);
     }
     if (next_value < 0 || next_value != value) {
@@ -531,12 +563,13 @@ static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_
 static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, uint8_t* resets, int offset) {
     int day = -1, year = calendar->tm_year, month = calendar->tm_mon;
     unsigned int count = 0, max = 366;
-    while (find_day_condition(calendar, days_of_month, dim, dom, days_of_week, dow, flags, &day) && count++ < max) {
+    while (count < max && find_day_condition(calendar, days_of_month, dim, dom, days_of_week, dow, flags, &day)) {
         if (offset > 0) reset_all_min(calendar, resets) else reset_all_max(calendar, resets);
         add_to_field(calendar, CRON_CF_DAY_OF_MONTH, offset); MKTIME(calendar);
         /* These two conditions may be unecessary. Verify in the future. */
         if(offset < 0 && (calendar->tm_year < CRON_MIN_YEARS - YEAR_OFFSET)) goto return_error;
         if(offset > 0 && (calendar->tm_year > CRON_MAX_YEARS - YEAR_OFFSET)) goto return_error;
+        count++;
         dom = calendar->tm_mday;
         dow = calendar->tm_wday;
         if (year != calendar->tm_year) {
@@ -548,8 +581,33 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
             day = -1;
         }
     }
+    if (find_day_condition(calendar, days_of_month, dim, dom, days_of_week, dow, flags, &day)) goto return_error;
     return dom; return_error: return -1;
 }
+
+#ifdef CRON_STRICT_MATCH
+static int calendar_matches_expr(const cron_expr* expr, struct tm* calendar) {
+    int day = -1;
+#ifndef CRON_DISABLE_YEARS
+    int yidx = 0;
+#endif
+
+    if (!cron_get_bit(expr->seconds, calendar->tm_sec)) return 0;
+    if (!cron_get_bit(expr->minutes, calendar->tm_min)) return 0;
+    if (!cron_get_bit(expr->hours, calendar->tm_hour)) return 0;
+    if (!cron_get_bit(expr->months, calendar->tm_mon)) return 0;
+    if (find_day_condition(calendar, (uint8_t*) expr->days_of_month, (int8_t*) expr->day_in_month,
+            calendar->tm_mday, (uint8_t*) expr->days_of_week, calendar->tm_wday, (uint8_t*) expr->flags, &day)) return 0;
+#ifndef CRON_DISABLE_YEARS
+    if (!cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) {
+        yidx = calendar->tm_year + YEAR_OFFSET - CRON_MIN_YEARS;
+        if (yidx < 0 || yidx >= EXPR_YEARS_LENGTH*8) return 0;
+        if (!cron_get_bit(expr->years, yidx)) return 0;
+    }
+#endif
+    return 1;
+}
+#endif
 
 #define RI(field, expr_field, min, max, nextField) \
         value = *get_field_ptr(calendar, field); update_value = find_nextprev(expr_field, max, value, min, calendar, field, nextField, resets, offset);
@@ -558,8 +616,9 @@ static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, in
 static int do_nextprev(cron_expr* expr, struct tm* calendar, int dot, int offset) {
     int value = 0, update_value = 0;
     uint8_t resets[1];
+    unsigned int iter_guard = 0;
 
-    for(;;) {
+    for (iter_guard = 0; iter_guard <= CRON_MAX_DO_NEXTPREV_ITERS; iter_guard++) {
         *resets = 0;
         RI(CRON_CF_SECOND,        expr->seconds, 0, CRON_MAX_SECONDS + CRON_MAX_LEAP_SECONDS, CRON_CF_MINUTE);
         RF(CRON_CF_SECOND);       else if (update_value >= CRON_MAX_SECONDS) continue;
@@ -586,6 +645,7 @@ static int do_nextprev(cron_expr* expr, struct tm* calendar, int dot, int offset
         if (update_value < 0 || value == update_value) break;
 #endif
     }
+    if (iter_guard > CRON_MAX_DO_NEXTPREV_ITERS) update_value = -1;
 
     return update_value >= 0 ? 0 : update_value;
 }
@@ -683,7 +743,7 @@ int cron_generate_expr(cron_expr *source, char *buffer, int buffer_len, int cron
     return len;
 }
 
-static time_t cron(cron_expr* expr, time_t date, int offset) {
+static int cron_once(cron_expr* expr, time_t date, int offset, time_t* result) {
     /*
      The plan:
 
@@ -704,7 +764,7 @@ static time_t cron(cron_expr* expr, time_t date, int offset) {
      */
     struct tm calval, *calendar;
     time_t original, calculated;
-    if (!expr) goto return_error;
+    if (!expr || !result) goto return_error;
     memset(&calval, 0, sizeof(struct tm));
     calendar = cron_time(&date, &calval);
     if (!calendar) goto return_error;
@@ -719,7 +779,39 @@ static time_t cron(cron_expr* expr, time_t date, int offset) {
         if (0 != do_nextprev(expr, calendar, calendar->tm_year, offset)) goto return_error;
     }
 
-    return cron_mktime(calendar);
+    *result = cron_mktime(calendar);
+    return CRON_INVALID_INSTANT == *result ? -1 : 0;
+    return_error: return -1;
+}
+
+static time_t cron(cron_expr* expr, time_t date, int offset) {
+    time_t candidate = CRON_INVALID_INSTANT;
+#ifndef CRON_STRICT_MATCH
+    if (0 != cron_once(expr, date, offset, &candidate)) goto return_error;
+    return candidate;
+#else
+    /*
+     * Enforce candidate validity after libc time normalization.
+     * This prevents returning non-matching instants under DST/local-time quirks.
+     */
+    struct tm calval, *calendar;
+    time_t seed = date;
+    unsigned int guard = 0;
+
+    while (guard++ < CRON_MAX_CRON_ITERS) {
+        if (0 != cron_once(expr, seed, offset, &candidate)) goto return_error;
+        if ((offset > 0 && candidate <= seed) || (offset < 0 && candidate >= seed)) {
+            seed += offset;
+            continue;
+        }
+        memset(&calval, 0, sizeof(struct tm));
+        calendar = cron_time(&candidate, &calval);
+        if (!calendar) goto return_error;
+        if (calendar_matches_expr(expr, calendar)) return candidate;
+        seed = candidate + offset;
+    }
+#endif
+
     return_error: return CRON_INVALID_INSTANT;
 }
 

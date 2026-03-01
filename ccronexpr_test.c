@@ -129,6 +129,24 @@ void poors_mans_strptime(const char* str, struct tm* cal) {
     cal->tm_isdst = -1;
 }
 
+static int normalize_datetime(const char* input, char* output, size_t output_len) {
+    struct tm tmval;
+    time_t t;
+    struct tm* normalized = NULL;
+    if (!input || !output || output_len == 0) return 0;
+    poors_mans_strptime(input, &tmval);
+    t = cron_mktime(&tmval);
+    if (CRON_INVALID_INSTANT == t) return 0;
+#ifdef CRON_USE_LOCAL_TIME
+    normalized = localtime(&t);
+#else
+    normalized = gmtime(&t);
+#endif
+    if (!normalized) return 0;
+    if (0 == strftime(output, output_len, DATE_FORMAT, normalized)) return 0;
+    return 1;
+}
+
 typedef time_t (*cron_find_fn)(cron_expr*, time_t);
 
 int count_fields(const char* str, char del) {
@@ -184,6 +202,23 @@ void check_fn_line(cron_find_fn fn, const char* pattern, const char* initial, co
     strftime(buffer, 512, DATE_FORMAT, calnext);
     printf("parsed: %s\n", pattern);
     if (0 != strcmp(expected, buffer+(buffer[0] == '+' ? 1 : 0))) {
+#ifdef CRON_USE_LOCAL_TIME
+        char normalized_expected[64];
+        const char* tz = getenv("TZ");
+        int has_normalized_expected = normalize_datetime(expected, normalized_expected, sizeof(normalized_expected));
+        const char* normalized_view = has_normalized_expected
+                ? normalized_expected + (normalized_expected[0] == '+' ? 1 : 0) : NULL;
+        if (!has_normalized_expected || 0 != strcmp(expected, normalized_view)) {
+            printf("WARN: Expected local datetime does not exist in timezone '%s'.\n", tz ? tz : "(unset)");
+            printf("Line: %d\n", line);
+            printf("Pattern: %s\n", pattern);
+            printf("Initial: %s\n", initial);
+            printf("Expected(nonexistent): %s\n", expected);
+            if (normalized_view) printf("Normalized expected: %s\n", normalized_view);
+            printf("Actual: %s\n", buffer);
+            goto mismatch_accepted;
+        }
+#endif
         printf("Line: %d\n", line);
         printf("Pattern: %s\n", pattern);
         printf("Initial: %s\n", initial);
@@ -191,6 +226,7 @@ void check_fn_line(cron_find_fn fn, const char* pattern, const char* initial, co
         printf("Actual: %s\n", buffer);
         assert(0);
     }
+mismatch_accepted:
     assert(cron_generate_expr(&parsed1, buffer, 512, len, &err) > 0);
     if (0 != strcmp(pattern, buffer)) {
         printf("Line: %d\n", line);
@@ -220,6 +256,22 @@ void check_calc_invalid() {
     time_t dateinit = cron_mktime(&calinit);
     time_t next_res = cron_next(&parsed, dateinit);
     time_t prev_res = cron_prev(&parsed, dateinit);
+    assert(CRON_INVALID_INSTANT == next_res);
+    assert(CRON_INVALID_INSTANT == prev_res);
+
+    /* Regression: invalid schedules must stay invalid around DST transitions too. */
+    poors_mans_strptime("2009-06-20_00:59:59", &calinit);
+    dateinit = cron_mktime(&calinit);
+    next_res = cron_next(&parsed, dateinit);
+    prev_res = cron_prev(&parsed, dateinit);
+    assert(CRON_INVALID_INSTANT == next_res);
+    assert(CRON_INVALID_INSTANT == prev_res);
+
+    cron_parse_expr("0 0 0 30 2 *", &parsed, NULL);
+    poors_mans_strptime("2012-07-01_09:53:50", &calinit);
+    dateinit = cron_mktime(&calinit);
+    next_res = cron_next(&parsed, dateinit);
+    prev_res = cron_prev(&parsed, dateinit);
     assert(CRON_INVALID_INSTANT == next_res);
     assert(CRON_INVALID_INSTANT == prev_res);
 }

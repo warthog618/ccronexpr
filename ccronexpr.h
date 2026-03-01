@@ -84,7 +84,11 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
  * Uses the specified expression to calculate the next 'fire' date after
  * the specified date. All dates are processed as UTC (GMT) dates
  * without timezones information. To use local dates (current system timezone)
- * instead of GMT compile with '-DCRON_USE_LOCAL_TIME'
+ * instead of GMT compile with '-DCRON_USE_LOCAL_TIME'.
+ *
+ * By default scheduler output is relaxed (legacy behavior). To enforce strict
+ * post-normalization matching (resulting local calendar must match all cron
+ * fields), compile with '-DCRON_STRICT_MATCH'.
  *
  * @param expr parsed cron expression to use in next date calculation
  * @param date start date to start calculation from
@@ -96,7 +100,11 @@ time_t cron_next(cron_expr* expr, time_t date);
  * Uses the specified expression to calculate the previous 'fire' date after
  * the specified date. All dates are processed as UTC (GMT) dates
  * without timezones information. To use local dates (current system timezone)
- * instead of GMT compile with '-DCRON_USE_LOCAL_TIME'
+ * instead of GMT compile with '-DCRON_USE_LOCAL_TIME'.
+ *
+ * By default scheduler output is relaxed (legacy behavior). To enforce strict
+ * post-normalization matching (resulting local calendar must match all cron
+ * fields), compile with '-DCRON_STRICT_MATCH'.
  *
  * @param expr parsed cron expression to use in previous date calculation
  * @param date start date to start calculation from
