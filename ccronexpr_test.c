@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include "ccronexpr.h"
 
@@ -149,20 +150,24 @@ static int normalize_datetime(const char* input, char* output, size_t output_len
 
 typedef time_t (*cron_find_fn)(cron_expr*, time_t);
 
-int count_fields(const char* str, char del) {
-    size_t count = 0;
+static int count_fields(const char* str) {
+    int count = 0, in_field = 0;
     if (!str) return -1;
-    while ((str = strchr(str, del)) != NULL) {
-        count++;
-        do str++; while (del == *str);
+    while (*str) {
+        if (isspace((unsigned char)*str)) in_field = 0;
+        else if (!in_field) {
+            in_field = 1;
+            count++;
+        }
+        str++;
     }
-    return (int)count + 1;
+    return count;
 }
 
 #define check_invalid_instant(fn_fn,pattern,initial) check_fn_invalid_instant_line(fn_fn, pattern, initial, __LINE__)
 void check_fn_invalid_instant_line(cron_find_fn fn, const char* pattern, const char* initial, int line) {
     const char* err = NULL;
-    const int len = count_fields(pattern, ' ');
+    const int len = count_fields(pattern);
     cron_expr parsed1, parsed2;
     /*printf("Pattern: %s\n", pattern);**/
     cron_parse_expr(pattern, &parsed1, &err);
@@ -181,7 +186,7 @@ void check_fn_invalid_instant_line(cron_find_fn fn, const char* pattern, const c
 #define check_fn(fn_fn,pattern,initial,expected) check_fn_line(fn_fn, pattern, initial, expected, __LINE__)
 void check_fn_line(cron_find_fn fn, const char* pattern, const char* initial, const char* expected, int line) {
     const char* err = NULL;
-    const int len = count_fields(pattern, ' ');
+    const int len = count_fields(pattern);
     cron_expr parsed1, parsed2;
     /*printf("Pattern: %s\n", pattern);**/
     cron_parse_expr(pattern, &parsed1, &err);
@@ -241,7 +246,7 @@ mismatch_accepted:
 #define check_fn_t(fn_fn,pattern,initial,expected) check_fn_line_t(fn_fn, pattern, initial, expected, __LINE__)
 void check_fn_line_t(cron_find_fn fn, const char* pattern, time_t initial, time_t expected, int line) {
     const char* err = NULL;
-    const int len = count_fields(pattern, ' ');
+    const int len = count_fields(pattern);
     cron_expr parsed1, parsed2;
     time_t datenext;
     char* buffer;
@@ -310,7 +315,7 @@ void check_calc_invalid() {
 
 void check_expr_invalid(const char* pattern) {
     const char* err = NULL;
-    const int len = count_fields(pattern, ' ');
+    const int len = count_fields(pattern);
     cron_expr parsed1, parsed2;
     cron_parse_expr(pattern, &parsed1, &err);
     printf("parsed1: %s\n", pattern);
@@ -323,7 +328,7 @@ void check_expr_invalid(const char* pattern) {
 #define check_expr_valid(pattern) check_expr_valid_line(pattern, __LINE__)
 void check_expr_valid_line(const char* pattern, int line) {
     const char* err = NULL;
-    const int len = count_fields(pattern, ' ');
+    const int len = count_fields(pattern);
     cron_expr parsed1, parsed2;
     cron_parse_expr(pattern, &parsed1, &err);
     printf("parsed1: %s\n", pattern);
@@ -402,6 +407,13 @@ void test_expr() {
         check_fn(cron_next, "* * * * *", "2024-04-14_01:59:59", "2024-04-14_03:00:00");
         check_fn_t(cron_next, "* * * * * *", (time_t)1710035999, (time_t)1710036000);
     }
+#endif
+
+    /* Expression fields may be separated by generic whitespace (tabs/spaces). */
+    check_same("* * * * *", "*\t*\t*\t*\t*");
+    check_same("* * * * * *", "*\t*\t*\t*\t*\t*");
+#ifndef CRON_DISABLE_YEARS
+    check_same("* * * * * * *", "*\t*\t*\t*\t*\t*\t*");
 #endif
 
     /* Multiple options in the seconds field. */

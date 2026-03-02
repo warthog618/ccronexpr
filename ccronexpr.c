@@ -341,14 +341,18 @@ static int match_ordinals(const char* str, const char* const* arr, size_t arr_le
     size_t i; for (i = 0; i < arr_len; i++) if (!compare_strings(str, arr[i], strlen(arr[i]))) return (int)i; return -1;
 }
 
-static int count_fields(const char* str, char del) {
-    size_t count = 0;
+static int count_fields(const char* str) {
+    int count = 0, in_field = 0;
     if (!str) return -1;
-    while ((str = strchr(str, del)) != NULL) {
-        count++;
-        do str++; while (del == *str);
+    while (*str) {
+        if (isspace((unsigned char)*str)) in_field = 0;
+        else if (!in_field) {
+            in_field = 1;
+            count++;
+        }
+        str++;
     }
-    return (int)count + 1;
+    return count;
 }
 
 static void token_next(ParserContext* context) {
@@ -592,7 +596,7 @@ static int find_nextprev(uint8_t* bits, int max, int value, int value_offset, st
     return next_value < 0 ? 0 : next_value; return_error: return -1;
 }
 
-static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, int* day) {
+static int find_day_condition(struct tm* calendar, const uint8_t* days_of_month, const int8_t* dim, int dom, const uint8_t* days_of_week, int dow, const uint8_t* flags, int* day) {
     int tmp_day = *day;
     if (tmp_day < 0) {
         if ((!*flags && *dim < 0) || *flags & 1) tmp_day = last_day_of_month(calendar->tm_mon, calendar->tm_year, 0);
@@ -611,7 +615,7 @@ static int find_day_condition(struct tm* calendar, uint8_t* days_of_month, int8_
     return 0;
 }
 
-static int find_day(struct tm* calendar, uint8_t* days_of_month, int8_t* dim, int dom, uint8_t* days_of_week, int dow, uint8_t* flags, uint8_t* resets, int offset) {
+static int find_day(struct tm* calendar, const uint8_t* days_of_month, const int8_t* dim, int dom, const uint8_t* days_of_week, int dow, const uint8_t* flags, uint8_t* resets, int offset) {
     int day = -1, year = calendar->tm_year, month = calendar->tm_mon;
     unsigned int count = 0, max = 366;
     while (count < max && find_day_condition(calendar, days_of_month, dim, dom, days_of_week, dow, flags, &day)) {
@@ -647,8 +651,8 @@ static int calendar_matches_expr(const cron_expr* expr, struct tm* calendar) {
     if (!cron_get_bit(expr->minutes, calendar->tm_min)) return 0;
     if (!cron_get_bit(expr->hours, calendar->tm_hour)) return 0;
     if (!cron_get_bit(expr->months, calendar->tm_mon)) return 0;
-    if (find_day_condition(calendar, (uint8_t*) expr->days_of_month, (int8_t*) expr->day_in_month,
-            calendar->tm_mday, (uint8_t*) expr->days_of_week, calendar->tm_wday, (uint8_t*) expr->flags, &day)) return 0;
+    if (find_day_condition(calendar, expr->days_of_month, expr->day_in_month,
+            calendar->tm_mday, expr->days_of_week, calendar->tm_wday, expr->flags, &day)) return 0;
 #ifndef CRON_DISABLE_YEARS
     if (!cron_get_bit(expr->years, EXPR_YEARS_LENGTH*8-1)) {
         yidx = calendar->tm_year + CRON_YEAR_OFFSET - CRON_MIN_YEARS;
@@ -886,7 +890,7 @@ void cron_parse_expr(const char* expression, cron_expr* target, const char** err
         else if (!strcmp("secondly", expression))                                    expression = "* * * * * * *";
         else if (!strcmp("reboot",   expression))                           CRON_ERROR("@reboot not implemented");
     }
-    len = count_fields(expression, ' ');
+    len = count_fields(expression);
     if (len < 5 || len > 7) CRON_ERROR("Invalid number of fields, expression must consist of 5-7 fields");
     memset(target, 0, sizeof(*target));
     memset(&context, 0, sizeof(context));
