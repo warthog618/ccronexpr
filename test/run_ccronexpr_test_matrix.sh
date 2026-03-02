@@ -28,53 +28,8 @@ Egypt}"
 if [ "${XFAIL_MATRIX+x}" = "x" ]; then
     XFAIL_MATRIX="${XFAIL_MATRIX:-}"
 else
-    # Default known divergences by mode/compiler/timezone.
-    XFAIL_MATRIX="
-strict:musl_gcc:local:America/Sao_Paulo
-strict:musl_gcc:local:America/Santiago
-strict:musl_gcc:local:America/Asuncion
-strict:musl_gcc:local:America/Coyhaique
-strict:musl_gcc:local:America/Punta_Arenas
-strict:musl_gcc:local:Asia/Tehran
-strict:musl_gcc:local:Pacific/Apia
-strict:musl_gcc:local:Africa/Casablanca
-strict:musl_gcc:local:Africa/Cairo
-strict:musl_gcc:local:Antarctica/Palmer
-strict:musl_gcc:local:Egypt
-strict:musl_gcc:local_noyears:America/Sao_Paulo
-strict:musl_gcc:local_noyears:America/Santiago
-strict:musl_gcc:local_noyears:America/Asuncion
-strict:musl_gcc:local_noyears:America/Coyhaique
-strict:musl_gcc:local_noyears:America/Punta_Arenas
-strict:musl_gcc:local_noyears:Asia/Tehran
-strict:musl_gcc:local_noyears:Pacific/Apia
-strict:musl_gcc:local_noyears:Africa/Casablanca
-strict:musl_gcc:local_noyears:Africa/Cairo
-strict:musl_gcc:local_noyears:Antarctica/Palmer
-strict:musl_gcc:local_noyears:Egypt
-relaxed:musl_gcc:local:America/Sao_Paulo
-relaxed:musl_gcc:local:America/Santiago
-relaxed:musl_gcc:local:America/Asuncion
-relaxed:musl_gcc:local:America/Coyhaique
-relaxed:musl_gcc:local:America/Punta_Arenas
-relaxed:musl_gcc:local:Asia/Tehran
-relaxed:musl_gcc:local:Pacific/Apia
-relaxed:musl_gcc:local:Africa/Casablanca
-relaxed:musl_gcc:local:Africa/Cairo
-relaxed:musl_gcc:local:Antarctica/Palmer
-relaxed:musl_gcc:local:Egypt
-relaxed:musl_gcc:local_noyears:America/Sao_Paulo
-relaxed:musl_gcc:local_noyears:America/Santiago
-relaxed:musl_gcc:local_noyears:America/Asuncion
-relaxed:musl_gcc:local_noyears:America/Coyhaique
-relaxed:musl_gcc:local_noyears:America/Punta_Arenas
-relaxed:musl_gcc:local_noyears:Asia/Tehran
-relaxed:musl_gcc:local_noyears:Pacific/Apia
-relaxed:musl_gcc:local_noyears:Africa/Casablanca
-relaxed:musl_gcc:local_noyears:Africa/Cairo
-relaxed:musl_gcc:local_noyears:Antarctica/Palmer
-relaxed:musl_gcc:local_noyears:Egypt
-"
+    # Keep default empty; caller/CI can provide XFAIL_MATRIX if needed.
+    XFAIL_MATRIX=""
 fi
 
 compiler_specs=()
