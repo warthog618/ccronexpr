@@ -367,6 +367,41 @@ void test_expr() {
         check_fn_t(cron_next, "* * * * * *", (time_t)1572760799, (time_t)1572760800);
         check_fn_t(cron_next, "* * * * * *", (time_t)1572764399, (time_t)1572764400);
     }
+    if (tz && !strcmp("Pacific/Apia", tz)) {
+        /* Date-line jump: 2011-12-30 does not exist in local wall-clock time. */
+        check_fn(cron_next, "0 0 0 * * *", "2011-12-29_00:00:01", "2011-12-31_00:00:00");
+        check_fn(cron_prev, "0 0 0 * * *", "2011-12-31_00:00:00", "2011-12-29_00:00:00");
+        check_fn(cron_next, "0 0 0 30 12 *", "2011-12-29_00:00:01", "2012-12-30_00:00:00");
+    }
+    if (tz && !strcmp("Pacific/Kiritimati", tz)) {
+        /* Date-line jump: 1994-12-31 does not exist in local wall-clock time. */
+        check_fn(cron_next, "0 0 0 * * *", "1994-12-30_00:00:01", "1995-01-01_00:00:00");
+        check_fn(cron_prev, "0 0 0 * * *", "1995-01-01_00:00:00", "1994-12-30_00:00:00");
+    }
+    if (tz && !strcmp("Australia/Lord_Howe", tz)) {
+        /* 30-minute DST jump forward (02:00 -> 02:30). */
+        check_fn(cron_next, "* * * * *", "2024-10-06_01:59:59", "2024-10-06_02:30:00");
+        /* 02:00 local is skipped on this date. */
+        check_fn(cron_next, "0 0 2 * * *", "2024-10-06_01:59:59", "2024-10-07_02:00:00");
+        /* Fall-back overlap disambiguated by epoch. */
+        check_fn_t(cron_next, "* * * * * *", (time_t)1712415599, (time_t)1712415600);
+    }
+    if (tz && !strcmp("Pacific/Chatham", tz)) {
+        /* +12:45/+13:45 zone with DST jump (02:45 -> 03:45). */
+        check_fn(cron_next, "* * * * *", "2024-09-29_02:44:59", "2024-09-29_03:45:00");
+        check_fn_t(cron_next, "* * * * * *", (time_t)1727531999, (time_t)1727532000);
+        check_fn_t(cron_next, "* * * * * *", (time_t)1712411999, (time_t)1712412000);
+    }
+    if (tz && !strcmp("Antarctica/Troll", tz)) {
+        /* Seasonal base-offset switch (+00 <-> +02). */
+        check_fn(cron_next, "* * * * *", "2024-03-31_00:59:59", "2024-03-31_03:00:00");
+        check_fn_t(cron_next, "* * * * * *", (time_t)1729990799, (time_t)1729990800);
+    }
+    if (tz && !strcmp("Africa/Casablanca", tz)) {
+        /* Ramadan DST suspension/restore transitions. */
+        check_fn(cron_next, "* * * * *", "2024-04-14_01:59:59", "2024-04-14_03:00:00");
+        check_fn_t(cron_next, "* * * * * *", (time_t)1710035999, (time_t)1710036000);
+    }
 #endif
 
     /* Multiple options in the seconds field. */
