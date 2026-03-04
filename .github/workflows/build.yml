@@ -58,3 +58,82 @@ jobs:
         working-directory: ${{github.workspace}}/build
         shell: bash
         run: ctest --rerun-failed --output-on-failure --extra-verbose -C $BUILD_TYPE
+
+  supertinycron:
+    name: Supertinycron (${{ matrix.compiler }}, static=${{ matrix.static }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            c_compiler: gcc
+            static: "OFF"
+            install_musl: false
+          - compiler: gcc
+            c_compiler: gcc
+            static: "ON"
+            install_musl: false
+          - compiler: musl-gcc
+            c_compiler: musl-gcc
+            static: "OFF"
+            install_musl: true
+          - compiler: musl-gcc
+            c_compiler: musl-gcc
+            static: "ON"
+            install_musl: true
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install musl toolchain
+        if: matrix.install_musl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Configure CMake
+        shell: bash
+        run: >
+          cmake -S . -B build-supertinycron
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCRON_DISABLE_TESTING=OFF
+          -DCRON_USE_LOCAL_TIME=1
+          -DCRON_BUILD_SUPERTINYCRON=ON
+          -DCRON_SUPERTINYCRON_STATIC=${{ matrix.static }}
+
+      - name: Build
+        shell: bash
+        run: cmake --build build-supertinycron --config $BUILD_TYPE --target supertinycron ccronexpr_test
+
+      - name: Test Library
+        shell: bash
+        run: ctest --test-dir build-supertinycron --output-on-failure -C $BUILD_TYPE
+
+      - name: Smoke Test Supertinycron
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./build-supertinycron/supertinycron version
+
+          set +e
+          timeout 3s ./build-supertinycron/supertinycron '* * * * * * *' /bin/true
+          rc=$?
+          set -e
+          test "$rc" -eq 124
+
+          set +e
+          ./build-supertinycron/supertinycron '0 0 0 31 2 * *' /bin/true > /tmp/supertinycron-invalid.log 2>&1
+          rc=$?
+          set -e
+          test "$rc" -eq 1
+          grep -q "no next matching instant" /tmp/supertinycron-invalid.log
+
+      - name: Validate Static Binary
+        if: matrix.static == 'ON'
+        shell: bash
+        run: file ./build-supertinycron/supertinycron | grep -qi "statically linked"

@@ -163,6 +163,36 @@ Usage example
 Compilation and tests run examples
 ----------------------------------
 
+CMake builds
+------------
+
+    cmake -S . -B build -DCRON_DISABLE_TESTING=OFF
+    cmake --build build
+    ctest --test-dir build --output-on-failure
+
+Build `supertinycron` as a separate target (POSIX-only):
+
+    cmake -S . -B build -DCRON_BUILD_SUPERTINYCRON=ON -DCRON_USE_LOCAL_TIME=1
+    cmake --build build --target supertinycron
+    ./build/supertinycron '*/5 * * * * *' /bin/echo hello
+
+Select compiler explicitly:
+
+    cmake -S . -B build-gcc -DCRON_BUILD_SUPERTINYCRON=ON -DCRON_USE_LOCAL_TIME=1 -DCMAKE_C_COMPILER=gcc
+    cmake --build build-gcc --target supertinycron
+
+    cmake -S . -B build-musl -DCRON_BUILD_SUPERTINYCRON=ON -DCRON_USE_LOCAL_TIME=1 -DCMAKE_C_COMPILER=musl-gcc
+    cmake --build build-musl --target supertinycron
+
+Static `supertinycron` build:
+
+    cmake -S . -B build-musl-static -DCRON_BUILD_SUPERTINYCRON=ON -DCRON_SUPERTINYCRON_STATIC=ON -DCRON_USE_LOCAL_TIME=1 -DCMAKE_C_COMPILER=musl-gcc
+    cmake --build build-musl-static --target supertinycron
+
+`CRON_BUILD_SUPERTINYCRON` defaults to `OFF` so CMake library/test builds keep working on non-POSIX platforms.
+`CRON_SUPERTINYCRON_STATIC` defaults to `OFF`.
+`CRON_SUPERTINYCRON_STATIC` can be used with `gcc` too, but `musl-gcc` static binaries are usually the most portable.
+
     gcc ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c89 -o a.out && ./a.out
     g++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -o a.out && ./a.out
     g++ ccronexpr.c ccronexpr_test.c -I. -Wall -Wextra -std=c++11 -DCRON_COMPILE_AS_CXX -o a.out && ./a.out

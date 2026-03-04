@@ -7,6 +7,8 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <errno.h>
+#include <limits.h>
 #include <ctype.h>
 
 #include "ccronexpr.h"
@@ -28,72 +30,41 @@ void sigchld_handler(int signo) {
 
 void sig_handler(int signo) {
     if (signo == SIGTERM || signo == SIGINT) {
-        output("terminated");
+        ssize_t ignored;
+        static const char msg[] = "[supertinycron] terminated\n";
+        ignored = write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        (void)ignored;
         _exit(0);
     }
 }
 
 int cron_system(const char *shell, const char *command) {
-    int stdout_pipe[2], stderr_pipe[2];
+    int status;
+    pid_t wpid;
     pid_t pid;
-
-    if (pipe(stdout_pipe) != 0 || pipe(stderr_pipe) != 0) {
-        perror("pipe");
-        return -1;
-    }
 
     pid = fork();
     if (pid == 0) {
-        close(stdout_pipe[0]);
-        close(stderr_pipe[0]);
-
-        if (dup2(stdout_pipe[1], STDOUT_FILENO) == -1) {
-            perror("dup2 stdout");
-            return -1;
-        }
-
-        if (dup2(stderr_pipe[1], STDERR_FILENO) == -1) {
-            perror("dup2 stderr");
-            return -1;
-        }
-
-        close(stdout_pipe[1]);
-        close(stderr_pipe[1]);
-
         execl(shell, shell, "-c", command, NULL);
         perror("execl");
-        exit(EXIT_FAILURE);
-    } else if (pid < 0) {
+        _exit(127);
+    }
+    if (pid < 0) {
         perror("fork");
         return -1;
-    } else {
-        char buffer[4096];
-        int nbytes;
+    }
 
-        close(stdout_pipe[1]);
-        close(stderr_pipe[1]);
+    do {
+        wpid = waitpid(pid, &status, 0);
+    } while (wpid < 0 && errno == EINTR);
 
-        while ((nbytes = read(stdout_pipe[0], buffer, sizeof(buffer))) > 0) {
-            write(STDOUT_FILENO, buffer, nbytes);
-        }
-
-        while ((nbytes = read(stderr_pipe[0], buffer, sizeof(buffer))) > 0) {
-            write(STDERR_FILENO, buffer, nbytes);
-        }
-
-        close(stdout_pipe[0]);
-        close(stderr_pipe[0]);
-
-        int status;
-        pid_t wpid = waitpid(pid, &status, 0);
-        if (wpid == -1) {
-            perror("waitpid");
-            return -1;
-        }
-        if (WIFEXITED(status)) return WEXITSTATUS(status);
-        else if (WIFSIGNALED(status)) return -WTERMSIG(status);
+    if (wpid < 0) {
+        perror("waitpid");
         return -1;
     }
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+    return -1;
 }
 
 TinyCronJob optsFromEnv() {
@@ -130,13 +101,24 @@ void exitOnErr(int err, const char *msg) {
 }
 
 void run(TinyCronJob *job) {
+    int rc;
+    char status[64];
     if (job->verbose) message(job->cmd, "running job:");
 
-    messageInt(cron_system(job->shell, job->cmd), "job failed:");
+    rc = cron_system(job->shell, job->cmd);
+    if (rc == 0) return;
+    if (rc < 0) {
+        message("internal execution error", "job failed:");
+        return;
+    }
+    snprintf(status, sizeof(status), "exit code %d", rc);
+    message(status, "job failed:");
 }
 
 int nap(TinyCronJob *job) {
     time_t current_time = time(NULL), next_run;
+    time_t sleep_left;
+    unsigned int sleep_chunk;
 
     cron_expr expr;
     const char* err = NULL;
@@ -148,16 +130,23 @@ int nap(TinyCronJob *job) {
     }
 
     next_run = cron_next(&expr, current_time);
+    if (next_run == CRON_INVALID_INSTANT) {
+        message("no next matching instant", "error creating job:");
+        return 1;
+    }
 
     if (job->verbose) {
         char msg[512];
         struct tm *time_info = localtime(&next_run);
-        strftime(msg, sizeof(msg), "%Y-%m-%d %H:%M:%S", time_info);
+        if (!time_info || !strftime(msg, sizeof(msg), "%Y-%m-%d %H:%M:%S", time_info)) strcpy(msg, "(invalid)");
         message(msg, "next job scheduled for");
     }
 
-    int sleep_duration = next_run - current_time;
-    sleep(sleep_duration);
+    sleep_left = next_run - current_time;
+    while (sleep_left > 0) {
+        sleep_chunk = (sleep_left > (time_t)UINT_MAX) ? UINT_MAX : (unsigned int)sleep_left;
+        sleep_left = (time_t)sleep(sleep_chunk);
+    }
     return 0;
 }
 
@@ -175,16 +164,23 @@ void parse_line(char *line, TinyCronJob *job, int count) {
     job->cmd = find_nth(line, ' ', line[0] == '@' ? 1 : count);
 
     if (!job->cmd) {
-        messageInt(1, "incomplete cron expression");
+        message("incomplete cron expression", "error:");
         exit(EXIT_FAILURE);
     }
     *job->cmd = '\0';
     ++job->cmd;
 }
 int main(int argc, char *argv[]) {
+    int i, line_len = 0;
+    char *line;
+    int exit_code;
+    TinyCronJob job;
+
     /*signal(SIGCHLD, sigchld_handler);*/
     signal(SIGTERM, sig_handler);
     signal(SIGINT,  sig_handler);
+
+    exit_code = EXIT_SUCCESS;
 
     if (argc < 2 || strcmp(argv[1], "help") == 0) usage();
 
@@ -192,25 +188,22 @@ int main(int argc, char *argv[]) {
         printf("supertinycron version %s\n", VERSION);
         return EXIT_SUCCESS;
     }
+    if (argc < 3) usage();
 
-    TinyCronJob job = optsFromEnv();
+    job = optsFromEnv();
 
-    int i, line_len = 0;
     for (i = 1; i < argc; i++) {
         line_len += strlen(argv[i]);
     }
+    line_len += argc - 2; /* spaces between argv[1..argc-1] */
+    line_len += 1;        /* trailing '\0' */
 
-    line_len += argc - 3;
-    line_len += 1;
-
-    char *line = (char *)malloc(line_len);
+    line = (char *)malloc(line_len);
     if (!line) {
         perror("malloc");
         return EXIT_FAILURE;
     }
-
     strcpy(line, argv[1]);
-
     for (i = 2; i < argc; i++) {
         strcat(line, " ");
         strcat(line, argv[i]);
@@ -222,7 +215,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         if (nap(&job)) {
-            perror("error creating job");
+            exit_code = EXIT_FAILURE;
             break;
         }
         run(&job);
@@ -230,5 +223,5 @@ int main(int argc, char *argv[]) {
 
     free(line);
 
-    return EXIT_SUCCESS;
+    return exit_code;
 }
