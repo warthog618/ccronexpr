@@ -24,6 +24,6 @@
 	"build": {
 		"srcDir": ".",
 		"includeDir": ".",
-		"flags": "-DCRON_USE_LOCAL_TIME"
+		"flags": "-DCRON_USE_LOCAL_TIME -DCRON_DISABLE_YEARS"
 	}
 }
